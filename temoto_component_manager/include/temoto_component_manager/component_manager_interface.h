@@ -61,7 +61,6 @@ public:
     resource_manager_->registerStatusCb(&ComponentManagerInterface::statusInfoCb);
   }
 
-
   /**
    * @brief startComponent
    * @param component_type
@@ -69,7 +68,6 @@ public:
    */
   ComponentTopicsRes startComponent(const std::string& component_type)
   {
-
     try
     {
       validateInterface();
@@ -127,9 +125,9 @@ public:
     // Call the server    
     try
     {
-      resource_manager_->template call<temoto_component_manager::LoadComponent>(component_manager::srv_name::MANAGER,
-                                                             component_manager::srv_name::SERVER,
-                                                             srv_msg);
+      resource_manager_->template call<LoadComponent>(srv_name::MANAGER,
+                                                      srv_name::SERVER,
+                                                      srv_msg);
     }
     catch(temoto_core::error::ErrorStack& error_stack)
     {
@@ -171,11 +169,11 @@ public:
     auto found_component_it = std::find_if(
         allocated_components_.begin(),
         allocated_components_.end(),
-        [&](const temoto_component_manager::LoadComponent& srv_msg) -> bool{ return srv_msg.request == req; });
+        [&](const LoadComponent& srv_msg) -> bool{ return srv_msg.request == req; });
 
     if (found_component_it == allocated_components_.end())
     {
-      throw CREATE_ERROR(error::Code::RESOURCE_UNLOAD_FAIL, "Unable to unload resource that is not "
+      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL, "Unable to unload resource that is not "
                                                             "loaded.");
     }
 
@@ -240,9 +238,9 @@ public:
         try
         {
           comp_it->request.output_topics = comp_it->response.output_topics;
-          resource_manager_->template call<temoto_component_manager::LoadComponent>(component_manager::srv_name::MANAGER,
-                                                                 component_manager::srv_name::SERVER,
-                                                                 *comp_it);
+          resource_manager_->template call<LoadComponent>(srv_name::MANAGER,
+                                                          srv_name::SERVER,
+                                                          *comp_it);
         }
         catch(temoto_core::error::ErrorStack& error_stack)
         {
@@ -251,8 +249,8 @@ public:
       }
       else
       {
-        throw CREATE_ERROR(error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
-                                                            "resource that does not exist.");
+        throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
+                           "resource that does not exist.");
       }
     }
   }
@@ -289,7 +287,7 @@ private:
   {
     if(!resource_manager_)
     {
-      throw CREATE_ERROR(error::Code::UNINITIALIZED, "Interface is not initalized.");
+      throw CREATE_ERROR(temoto_core::error::Code::UNINITIALIZED, "Interface is not initalized.");
     }
   }
 };

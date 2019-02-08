@@ -28,7 +28,6 @@
 #include <yaml-cpp/yaml.h>
 #include <fstream>
 
-
 /* 
  * ACTION IMPLEMENTATION of TaFindComponentPackages 
  */
@@ -49,7 +48,6 @@ void startTask(temoto_nlp::TaskInterface task_interface)
   input_subjects = task_interface.input_subjects_;
   switch (task_interface.id_)
   {
-        
     // Interface 0
     case 0:
       startInterface_0();
@@ -106,8 +104,8 @@ void startInterface_0()
       {
         std::vector<temoto_component_manager::ComponentInfo> component_infos_current = getComponentInfo(desc_file_path);
         component_infos.insert( component_infos.end()
-                           , component_infos_current.begin()
-                           , component_infos_current.end());
+                              , component_infos_current.begin()
+                              , component_infos_current.end());
       }
       catch(...)
       {
@@ -125,7 +123,7 @@ void startInterface_0()
       }
       else
       {
-        TEMOTO_DEBUG("This component already exists in the SID");
+        TEMOTO_DEBUG("This component already exists in the CID");
       }
     }
 
@@ -139,14 +137,14 @@ void startInterface_0()
  * @param path
  * @return
  */
-std::vector<std::string> findComponentDescFiles( const boost::filesystem::path& base_path, int search_depth = 1)
+std::vector<std::string> findComponentDescFiles( const boost::filesystem::path& base_path, int search_depth = 3)
 {
   boost::filesystem::directory_iterator end_itr;
   std::vector <std::string> desc_file_paths;
 
   try
   {
-    // Start looking the files incire current directory
+    // Start looking the files in current directory
     for (boost::filesystem::directory_iterator itr( base_path ); itr != end_itr; ++itr)
     {
       // if its a directory and depth limit is not there yet, go incire it
@@ -172,7 +170,10 @@ std::vector<std::string> findComponentDescFiles( const boost::filesystem::path& 
         desc_file_paths.push_back(itr->path().string());
       }
 
-
+      // if (boost::filesystem::is_regular_file(*itr))
+      // {
+      //   std::cout << "got: " << itr->path().filename() << std::endl;
+      // }  
     }
     return desc_file_paths;
   }
@@ -299,10 +300,20 @@ bool checkIgnoreDirs( std::string dir)
 }
 
 /// Directories that can be ignored
-std::vector<std::string> ignore_dirs_{"src", "launch", "config", "build", "description"};
+std::vector<std::string> ignore_dirs_{ "src"
+                                     , "include"
+                                     , ".git"
+                                     , "launch"
+                                     , "config"
+                                     , "build"
+                                     , "description"
+                                     , "actions"
+                                     , "msg"
+                                     , "srv"
+                                     , "scripts"};
 
 /// Name of the component description file
-std::string description_file_= "component_description.yaml";
+std::string description_file_= "components.yaml";
 
 }; // TaFindComponentPackages class
 

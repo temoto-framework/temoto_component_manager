@@ -44,7 +44,7 @@ void ComponentSnooper::startSnooping()
   temoto_nlp::Subject sub_0("what", "component packages");
 
   // Topic from where the raw AR tag tracker data comes from
-  std::string catkin_ws = ros::package::getPath(ROS_PACKAGE_NAME) + "/../..";
+  std::string catkin_ws = ros::package::getPath(ROS_PACKAGE_NAME) + "/../../..";
   sub_0.addData("string", catkin_ws);
 
   // This object will be updated incire the tracking action
