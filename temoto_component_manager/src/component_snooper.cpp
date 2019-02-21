@@ -61,7 +61,7 @@ void ComponentSnooper::startSnooping()
   temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
 
   // Get the root node of the tree
-  temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
+  //temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
   //sft.printTaskDescriptors(root_node);
 
   // Execute the SFT

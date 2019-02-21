@@ -50,15 +50,27 @@ public:
 private:
 
   /**
-   * @brief findComponent
-   * @param req
-   * @param components
-   * @return
+   * @brief Returns a vector of components that follow the requested criteria
+   * 
+   * @param req Requested component
+   * @param components Vector of known components
+   * @param si_ret Vector of found components
+   * @return true Found component(s)
+   * @return false Did not find any components
    */
   bool findComponents( temoto_component_manager::LoadComponent::Request& req
                   , const std::vector<ComponentInfo>& components
                   , std::vector<ComponentInfo>& si_ret ) const;
 
+  /**
+   * @brief Returns one component that matches the requested criteria the most
+   * 
+   * @param si Requested component
+   * @param components Vector of known components
+   * @param si_ret Found component
+   * @return true If found a component
+   * @return false if component was not found
+   */
   bool findComponent( const ComponentInfo& si
                  , const std::vector<ComponentInfo>& components
                  , ComponentInfo& si_ret ) const;

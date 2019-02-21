@@ -21,8 +21,6 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
                                             , &ComponentManagerServers::unloadComponentCb);
   // Register callback for status info
   resource_manager_.registerStatusCb(&ComponentManagerServers::statusCb);
-
-
   TEMOTO_INFO("Component manager is ready.");
 }
 
@@ -32,7 +30,6 @@ ComponentManagerServers::~ComponentManagerServers()
 
 void ComponentManagerServers::statusCb(temoto_core::ResourceStatus& srv)
 {
-
   TEMOTO_DEBUG("Received a status message.");
 
   // If local component failed, adjust package reliability and advertise to other managers via
@@ -59,8 +56,6 @@ void ComponentManagerServers::statusCb(temoto_core::ResourceStatus& srv)
 bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
                                               , ListComponents::Response& res)
 {
-  // std::vector <std::string> devList;
-
   // Find the devices with the required type
   for (const auto& component : cir_->getLocalComponents())
   {
@@ -73,12 +68,10 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
   return true;
 }
 
-// TODO: rename "loadComponentCb" to "loadComponentCb"
 void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
                                              , LoadComponent::Response& res)
 {
-  TEMOTO_INFO_STREAM("- - - - - - - - - - - - -\n"
-                     << "Received a request to load a component: \n" << req << std::endl);
+  TEMOTO_INFO_STREAM("Received a request to load a component: \n" << req << std::endl);
 
   // Try to find suitable candidate from local components
   std::vector<ComponentInfo> l_cis;
@@ -90,9 +83,16 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
   // Find the most reliable global component but do not forward the requests
   // that originate from other namespaces
   bool prefer_remote = false;
-  if (got_local_components && got_remote_components
+  if (got_local_components
+      && got_remote_components
       && (req.rmp.temoto_namespace == common::getTemotoNamespace()))
   {
+    /*
+     * TODO: This section should be expanded with more coosing metrics.
+     * Currently only reliabilites are compared but cost of communication
+     * delays, etc. should also be considered when a component is chosen
+     * from a remote namespace.
+     */  
     if (l_cis.at(0).getReliability() < r_cis.at(0).getReliability())
     {
       prefer_remote = true;
@@ -125,9 +125,9 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
       try
       {
         resource_manager_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
-                                                     , temoto_er_manager::srv_name::SERVER
-                                                     , load_er_msg
-                                                     , rmp::FailureBehavior::NONE);
+                                                                  , temoto_er_manager::srv_name::SERVER
+                                                                  , load_er_msg
+                                                                  , rmp::FailureBehavior::NONE);
 
         TEMOTO_DEBUG("Call to ProcessManager was sucessful.");
 
