@@ -105,7 +105,12 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
     for (ComponentInfo& ci : l_cis)
     {
       // Check if this component is already in use (providing some other types of data)
-
+      // If thats the case, then set up a topic remapper
+      ComponentInfo ci_in_use;
+      if (checkIfInUse(ci, ci_in_use))
+      {
+        // query the component from er_manager
+      }
 
       // Try to run the component via local Resource Manager
       temoto_er_manager::LoadExtResource load_er_msg;
@@ -295,11 +300,21 @@ void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyVal
   }
 }
 
-bool ComponentManagerServers::checkIfInUse(const ComponentInfo& ci) const
+bool ComponentManagerServers::checkIfInUse(const ComponentInfo& ci_to_check, ComponentInfo& ci_return) const
 {
   for (auto const& ac : allocated_components_)
   {
+    if (ac.second.getPackageName() != ci_to_check.getPackageName())
+    {
+      return false;
+    }
 
+    if (ac.second.getExecutable() != ci_to_check.getExecutable())
+    {
+      return false;
+    }
+
+    ci_return = ac.second;
   }
   return true;
 }

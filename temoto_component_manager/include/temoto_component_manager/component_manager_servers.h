@@ -88,7 +88,7 @@ private:
    * @return true 
    * @return false 
    */
-  bool checkIfInUse(const ComponentInfo& ci) const;
+  bool checkIfInUse(const ComponentInfo& ci_to_check, ComponentInfo& ci_return) const;
 
   /// Pointer to a central Component Info Registry object.
   ComponentInfoRegistry* cir_;
