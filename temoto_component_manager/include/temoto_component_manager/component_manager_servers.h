@@ -81,6 +81,15 @@ private:
                     , ComponentInfo& component_info
                     , std::string direction);
 
+  /**
+   * @brief Checks if given component is already in use
+   * 
+   * @param ci 
+   * @return true 
+   * @return false 
+   */
+  bool checkIfInUse(const ComponentInfo& ci) const;
+
   /// Pointer to a central Component Info Registry object.
   ComponentInfoRegistry* cir_;
 

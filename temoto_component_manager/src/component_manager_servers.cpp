@@ -104,6 +104,9 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
     // Loop over suitable components
     for (ComponentInfo& ci : l_cis)
     {
+      // Check if this component is already in use (providing some other types of data)
+
+
       // Try to run the component via local Resource Manager
       temoto_er_manager::LoadExtResource load_er_msg;
       load_er_msg.request.action = temoto_er_manager::action::ROS_EXECUTE;
@@ -290,6 +293,15 @@ void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyVal
     // Add the topic to the response message
     res_topics.push_back(res_topic);
   }
+}
+
+bool ComponentManagerServers::checkIfInUse(const ComponentInfo& ci) const
+{
+  for (auto const& ac : allocated_components_)
+  {
+
+  }
+  return true;
 }
 
 }  // component_manager namespace
