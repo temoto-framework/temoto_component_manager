@@ -139,7 +139,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
           if (input_topic.value.empty())
           {
             // If the client did not ask the data to be remapped, then return the default topic
-            res.input_topics.emplace_back(input_topic.key, alloc_comp_info.getInputTopic(input_topic.key));
+            diagnostic_msgs::KeyValue in_tpc;
+            in_tpc.key = input_topic.key;
+            in_tpc.value = alloc_comp_info.getInputTopic(input_topic.key);
+            res.input_topics.push_back(in_tpc);
           }
           else
           {
@@ -155,7 +158,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
                                                       , load_er_msg_remapper
                                                       , rmp::FailureBehavior::NONE);
 
-            res.input_topics.emplace_back(input_topic.key, input_topic.value);
+            res.input_topics.push_back(input_topic);
           }
         }
 
@@ -165,7 +168,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
           if (output_topic.value.empty())
           {
             // If the client did not ask the data to be remapped, then return the default topic
-            res.output_topics.emplace_back(output_topic.key, alloc_comp_info.getOutputTopic(output_topic.key));
+            diagnostic_msgs::KeyValue out_tpc;
+            out_tpc.key = output_topic.key;
+            out_tpc.value = alloc_comp_info.getOutputTopic(output_topic.key);
+            res.output_topics.push_back(out_tpc);
           }
           else
           {
@@ -181,7 +187,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
                                                       , load_er_msg_remapper
                                                       , rmp::FailureBehavior::NONE);
 
-            res.output_topics.emplace_back(output_topic.key, output_topic.value);
+            res.output_topics.push_back(output_topic);
           }
         }
 
