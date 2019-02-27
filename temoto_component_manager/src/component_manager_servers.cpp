@@ -77,7 +77,7 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
 void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
                                              , LoadComponent::Response& res)
 {
-  TEMOTO_INFO_STREAM("- - - - - - - - - - - - -\n"
+  TEMOTO_DEBUG_STREAM("- - - - - - - - - - - - -\n"
                      << "Received a request to load a component: \n" << req << std::endl);
 
   // Try to find suitable candidate from local components
@@ -221,7 +221,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
       // Remap the output topics if requested
       processTopics(req.output_topics, res.output_topics, load_er_msg, ci, "out");
             
-      TEMOTO_INFO( "ComponentManagerServers found a suitable local component: '%s', '%s', '%s', reliability %.3f"
+      TEMOTO_DEBUG( "Found a suitable local component: '%s', '%s', '%s', reliability %.3f"
                  , load_er_msg.request.action.c_str()
                  , load_er_msg.request.package_name.c_str()
                  , load_er_msg.request.executable.c_str()
