@@ -81,6 +81,14 @@ private:
                     , ComponentInfo& component_info
                     , std::string direction);
 
+  /**
+   * @brief Checks if given component is already in use
+   * 
+   * @param ci_to_check 
+   * @return temoto_core::temoto_id::ID 
+   */
+  temoto_core::temoto_id::ID checkIfInUse( const std::vector<ComponentInfo>& cis_to_check) const;
+
   /// Pointer to a central Component Info Registry object.
   ComponentInfoRegistry* cir_;
 
@@ -89,6 +97,7 @@ private:
 
   /// List of allocated components.
   std::map<temoto_core::temoto_id::ID, ComponentInfo> allocated_components_;
+  std::map<temoto_core::temoto_id::ID, temoto_er_manager::LoadExtResource> allocated_ext_resources_;
 
 }; // ComponentManagerServers
 
