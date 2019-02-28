@@ -13,14 +13,22 @@ using namespace temoto_core;
 ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfoRegistry *cir)
   : BaseSubsystem(*b, __func__)
   , cir_(cir)
-  , resource_manager_(srv_name::MANAGER, this)
+  , resource_manager_1_(srv_name::MANAGER, this)
+  , resource_manager_2_(srv_name::MANAGER_2, this)
 {
-  // Start the server
-  resource_manager_.addServer<LoadComponent>( srv_name::SERVER
-                                            , &ComponentManagerServers::loadComponentCb
-                                            , &ComponentManagerServers::unloadComponentCb);
+  // Start the component server
+  resource_manager_1_.addServer<LoadComponent>( srv_name::SERVER
+                                              , &ComponentManagerServers::loadComponentCb
+                                              , &ComponentManagerServers::unloadComponentCb);
+
+  resource_manager_2_.addServer<LoadPipe>( srv_name::PIPE_SERVER
+                                         , &ComponentManagerServers::loadPipeCb
+                                         , &ComponentManagerServers::unloadPipeCb);
+
   // Register callback for status info
-  resource_manager_.registerStatusCb(&ComponentManagerServers::statusCb);
+  resource_manager_1_.registerStatusCb(&ComponentManagerServers::statusCb1);
+  resource_manager_2_.registerStatusCb(&ComponentManagerServers::statusCb2);
+
   TEMOTO_INFO("Component manager is ready.");
 }
 
@@ -28,7 +36,10 @@ ComponentManagerServers::~ComponentManagerServers()
 {
 }
 
-void ComponentManagerServers::statusCb(temoto_core::ResourceStatus& srv)
+/*
+ * ComponentManagerServers::statusCb1
+ */
+void ComponentManagerServers::statusCb1(temoto_core::ResourceStatus& srv)
 {
   TEMOTO_DEBUG("Received a status message.");
 
@@ -53,6 +64,53 @@ void ComponentManagerServers::statusCb(temoto_core::ResourceStatus& srv)
   }
 }
 
+/*
+ * ComponentManagerServers::statusCb2
+ */
+void ComponentManagerServers::statusCb2(temoto_core::ResourceStatus& srv)
+{
+//   TEMOTO_DEBUG("Received a status message.");
+
+//   // If local sensor failed, adjust package reliability and advertise to other managers via
+//   // synchronizer.
+//   if (srv.request.status_code == temoto_core::rmp::status_codes::FAILED)
+//   {
+//     TEMOTO_DEBUG("A resource, that a running tracker depends on, has failed");
+
+// //    auto it = allocated_trackers_.find(srv.request.resource_id);
+// //    if (it != allocated_trackers_.end())
+
+//     int val = srv.request.resource_id;
+
+//     auto it = std::find_if(allocated_trackers_hack_.begin(), allocated_trackers_hack_.end(),
+//               [val](const std::pair<int, std::pair<TrackerInfoPtr, std::vector<int>>>& pair_in)
+//               {
+//                 for (const auto& client_id : pair_in.second.second)
+//                 {
+//                   if (client_id == val)
+//                   {
+//                     return true;
+//                   }
+//                 }
+//                 return false;
+//               });
+
+//     if (it != allocated_trackers_hack_.end())
+//     {
+//       TEMOTO_INFO("Tracker of type '%s' (pipe size: %d) has stopped working",
+//                    (it->second.first)->getType().c_str(),
+//                    (it->second.first)->getPipeSize());
+
+//       // Reduce the reliability of the tracker
+//       (it->second.first)->reliability_.adjustReliability(0);
+//       detection_method_history_[(it->second.first)->getType()].adjustReliability(0);
+//     }
+//   }
+}
+
+/*
+ * ComponentManagerServers::listComponentsCb
+ */
 bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
                                               , ListComponents::Response& res)
 {
@@ -68,6 +126,9 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
   return true;
 }
 
+/*
+ * ComponentManagerServers::loadComponentCb
+ */
 void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
                                              , LoadComponent::Response& res)
 {
@@ -124,7 +185,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
          * External Resource Manager does not start another component but rather just increases
          * it's use count.
          */ 
-        resource_manager_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
+        resource_manager_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
                                                       , temoto_er_manager::srv_name::SERVER
                                                       , load_er_msg
                                                       , rmp::FailureBehavior::NONE);
@@ -153,7 +214,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             load_er_msg_remapper.request.executable = "relay";
             load_er_msg_remapper.request.args = alloc_comp_info.getInputTopic(input_topic.key) + " " + input_topic.value;
             
-            resource_manager_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
+            resource_manager_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
                                                       , temoto_er_manager::srv_name::SERVER
                                                       , load_er_msg_remapper
                                                       , rmp::FailureBehavior::NONE);
@@ -182,7 +243,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             load_er_msg_remapper.request.executable = "relay";
             load_er_msg_remapper.request.args = alloc_comp_info.getOutputTopic(output_topic.key) + " " + output_topic.value;
 
-            resource_manager_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
+            resource_manager_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
                                                       , temoto_er_manager::srv_name::SERVER
                                                       , load_er_msg_remapper
                                                       , rmp::FailureBehavior::NONE);
@@ -229,10 +290,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
       try
       {
-        resource_manager_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
-                                                                  , temoto_er_manager::srv_name::SERVER
-                                                                  , load_er_msg
-                                                                  , rmp::FailureBehavior::NONE);
+        resource_manager_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
+                                                                    , temoto_er_manager::srv_name::SERVER
+                                                                    , load_er_msg
+                                                                    , rmp::FailureBehavior::NONE);
 
         TEMOTO_DEBUG("Call to ProcessManager was sucessful.");
 
@@ -284,11 +345,11 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
       try
       {
-        resource_manager_.call<LoadComponent>( srv_name::MANAGER
-                                             , srv_name::SERVER
-                                             , load_component_msg
-                                             , rmp::FailureBehavior::NONE
-                                             , ci.getTemotoNamespace());
+        resource_manager_1_.call<LoadComponent>( srv_name::MANAGER
+                                              , srv_name::SERVER
+                                              , load_component_msg
+                                              , rmp::FailureBehavior::NONE
+                                              , ci.getTemotoNamespace());
 
         TEMOTO_DEBUG("Call to remote ComponentManagerServers was sucessful.");
         res = load_component_msg.response;
@@ -308,7 +369,9 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
   }
 }
 
-// TODO: rename "unloadComponentCb" to "unloadComponentCb"
+/*
+ * ComponentManagerServers::unloadComponentCb
+ */
 void ComponentManagerServers::unloadComponentCb( LoadComponent::Request& req
                                                , LoadComponent::Response& res)
 {
@@ -318,6 +381,25 @@ void ComponentManagerServers::unloadComponentCb( LoadComponent::Request& req
   return;
 }
 
+/*
+ * ComponentManagerServers::loadPipeCb
+ */ 
+void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res)
+{
+
+}
+
+/*
+ * ComponentManagerServers::unloadPipeCb
+ */
+void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res)
+{
+
+}
+
+/*
+ * ComponentManagerServers::processTopics
+ */
 void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyValue>& req_topics
                                            , std::vector<diagnostic_msgs::KeyValue>& res_topics
                                            , temoto_er_manager::LoadExtResource& load_er_msg

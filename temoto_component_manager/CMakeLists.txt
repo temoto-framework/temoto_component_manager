@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(FILES
   ListComponents.srv
   LoadComponent.srv
+  LoadPipe.srv
 )
 
 generate_messages(

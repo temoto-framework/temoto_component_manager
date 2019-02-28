@@ -5,15 +5,19 @@
 #include "temoto_core/rmp/resource_manager_services.h"
 #include "temoto_component_manager/ListComponents.h"
 #include "temoto_component_manager/LoadComponent.h"
+#include "temoto_component_manager/LoadPipe.h"
 
 namespace temoto_component_manager
 {
   // TODO: Change the srv_name to something more reasonable
   namespace srv_name
   {
-      const std::string MANAGER = "component_manager";
-      const std::string SERVER = "start_component";
-      const std::string SYNC_TOPIC = "/temoto_core/"+MANAGER+"/sync";
+    const std::string MANAGER = "component_manager";
+    const std::string SERVER = "load_component";
+    const std::string SYNC_TOPIC = "/temoto_component_manager/"+MANAGER+"/sync";
+
+    const std::string MANAGER_2 = "component_manager_pipe";
+    const std::string PIPE_SERVER = "load_pipe";
   }
 }
 
@@ -65,4 +69,19 @@ static bool operator==(const temoto_component_manager::LoadComponent::Request& r
   // The component infos are equal
   return true;
 }
+
+/**
+ * @brief 
+ * 
+ * @param r1 
+ * @param r2 
+ * @return true 
+ * @return false 
+ */
+static bool operator==(const temoto_component_manager::LoadPipe::Request& r1,
+                       const temoto_component_manager::LoadPipe::Request& r2)
+{
+  return( r1.detection_method == r2.detection_method);
+}
+
 #endif

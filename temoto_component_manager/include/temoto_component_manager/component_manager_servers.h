@@ -42,7 +42,7 @@ public:
 private:
 
   // TODO: Unused service, should be removed
-  bool listComponentsCb(temoto_component_manager::ListComponents::Request& req, temoto_component_manager::ListComponents::Response& res);
+  bool listComponentsCb(ListComponents::Request& req, ListComponents::Response& res);
 
   /**
    * @brief Callback to a service that executes/runs a requested device
@@ -50,20 +50,42 @@ private:
    * @param req
    * @param res
    */
-  void loadComponentCb(temoto_component_manager::LoadComponent::Request& req, temoto_component_manager::LoadComponent::Response& res);
+  void loadComponentCb(LoadComponent::Request& req, LoadComponent::Response& res);
 
   /**
    * @brief Called when a component is unloaded.
    * @param req
    * @param res
    */
-  void unloadComponentCb(temoto_component_manager::LoadComponent::Request& req, temoto_component_manager::LoadComponent::Response& res);
+  void unloadComponentCb(LoadComponent::Request& req, LoadComponent::Response& res);
+
+  /**
+   * @brief Callback to pipe setup service
+   * 
+   * @param req 
+   * @param res 
+   */
+  void loadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res);
+
+  /**
+   * @brief Callback for pipe unloading routines
+   * 
+   * @param req 
+   * @param res 
+   */
+  void unloadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res);
 
   /**
    * @brief Called when component status update information is received.
    * @param srv
    */
-  void statusCb(temoto_core::ResourceStatus& srv);
+  void statusCb1(temoto_core::ResourceStatus& srv);
+
+  /**
+   * @brief Called when component status update information is received.
+   * @param srv
+   */
+  void statusCb2(temoto_core::ResourceStatus& srv);
 
   /**
    * @brief A function that helps to manage component topic related information.
@@ -93,7 +115,16 @@ private:
   ComponentInfoRegistry* cir_;
 
   /// Resource Management object which handles resource requests and status info propagation.
-  temoto_core::rmp::ResourceManager<ComponentManagerServers> resource_manager_;
+  temoto_core::rmp::ResourceManager<ComponentManagerServers> resource_manager_1_;
+
+  /*
+   * TODO: The second manager is used for making RMP calls within the same manager. If the same
+   * resouce manager is used for calling servers managed by the same manager, the calls will lock
+   */
+  temoto_core::rmp::ResourceManager<ComponentManagerServers> resource_manager_2_;
+
+  /// Generates unique id's for the pipes
+  temoto_core::temoto_id::IDManager pipe_id_generator_;
 
   /// List of allocated components.
   std::map<temoto_core::temoto_id::ID, ComponentInfo> allocated_components_;

@@ -102,10 +102,6 @@ public:
 
 
 private:
-
-  std::string log_class_ = "ComponentInfo";
-  std::string log_subsys_ = "component_manager";
-  std::string log_group_ = "component_manager";
   
   std::string temoto_namespace_;
   std::string component_name_;

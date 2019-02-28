@@ -2,6 +2,7 @@
 #define TEMOTO_COMPONENT_MANAGER__COMPONENT_INFO_REGISTRY_H
 
 #include "temoto_component_manager/component_info.h"
+#include "temoto_component_manager/pipe_info.h"
 #include "temoto_component_manager/LoadComponent.h"
 
 #include <mutex>
@@ -80,6 +81,9 @@ private:
 
   /// List of all components in remote managers.
   std::vector<ComponentInfo> remote_components_;
+
+  /// List of categorized pipes
+  std::map<std::string, PipeInfoPtrs> categorized_pipes_;
 
   /// Mutex for protecting component info vectors from data races
   mutable std::mutex read_write_mutex;
