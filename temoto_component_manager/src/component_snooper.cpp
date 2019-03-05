@@ -36,36 +36,65 @@ void ComponentSnooper::startSnooping()
    * running in the background until its ordered to be stopped.
    */
 
-  std::string action = "find";
-  temoto_nlp::Subjects subjects;
+  // Invoke the component finder action
+  {
+    std::string action = "find";
+    temoto_nlp::Subjects subjects;
 
-  // Subject that will contain the name of the tracked object.
-  // Necessary when the tracker has to be stopped
-  temoto_nlp::Subject sub_0("what", "component packages");
+    // Subject that will contain the name of the tracked object.
+    // Necessary when the tracker has to be stopped
+    temoto_nlp::Subject sub_0("what", "component packages");
 
-  // Topic from where the raw AR tag tracker data comes from
-  std::string catkin_ws = ros::package::getPath(ROS_PACKAGE_NAME) + "/../../..";
-  sub_0.addData("string", catkin_ws);
+    // Topic from where the raw AR tag tracker data comes from
+    std::string catkin_ws = ros::package::getPath(ROS_PACKAGE_NAME) + "/../../..";
+    sub_0.addData("string", catkin_ws);
 
-  // This object will be updated incire the tracking action
-  sub_0.addData("pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
+    // Pass a pointer of CIR to the action. This will be used for updating CIR.
+    sub_0.addData("pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
-  subjects.push_back(sub_0);
+    subjects.push_back(sub_0);
 
-  // Create a SF
-  std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
-  task_descriptors.emplace_back(action, subjects);
-  task_descriptors[0].setActionStemmed(action);
+    // Create a SF
+    std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
+    task_descriptors.emplace_back(action, subjects);
+    task_descriptors[0].setActionStemmed(action);
 
-  // Create a sematic frame tree
-  temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
+    // Create a sematic frame tree
+    temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
 
-  // Get the root node of the tree
-  //temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
-  //sft.printTaskDescriptors(root_node);
+    // Execute the SFT
+    action_engine_.executeSFTThreaded(std::move(sft));
+  }
 
-  // Execute the SFT
-  action_engine_.executeSFTThreaded(std::move(sft));
+  // Invoke the pipe finding action
+  {
+    std::string action = "find";
+    temoto_nlp::Subjects subjects;
+
+    // Subject that will contain the name of the tracked object.
+    // Necessary when the tracker has to be stopped
+    temoto_nlp::Subject sub_0("what", "pipes");
+
+    // Topic from where the raw AR tag tracker data comes from
+    std::string catkin_ws = ros::package::getPath(ROS_PACKAGE_NAME) + "/../../..";
+    sub_0.addData("string", catkin_ws);
+
+    // Pass a pointer of CIR to the action. This will be used for updating CIR.
+    sub_0.addData("pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
+
+    subjects.push_back(sub_0);
+
+    // Create a SF
+    std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
+    task_descriptors.emplace_back(action, subjects);
+    task_descriptors[0].setActionStemmed(action);
+
+    // Create a sematic frame tree
+    temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
+
+    // Execute the SFT
+    action_engine_.executeSFTThreaded(std::move(sft));
+  }
 }
 
 void ComponentSnooper::advertiseComponent(ComponentInfo& si) const

@@ -126,7 +126,12 @@ private:
   /// Generates unique id's for the pipes
   temoto_core::temoto_id::IDManager pipe_id_generator_;
 
-  /// List of allocated components.
+  /*
+   * TODO: A DATA STRUCTURE THAT IS A TEMPORARY HACK UNTIL RMP IS IMPROVED
+   */
+  std::map<int, std::pair<PipeInfo, std::vector<int>>>  allocated_pipes_hack_;
+
+  /// List of allocated components
   std::map<temoto_core::temoto_id::ID, ComponentInfo> allocated_components_;
   std::map<temoto_core::temoto_id::ID, temoto_er_manager::LoadExtResource> allocated_ext_resources_;
 

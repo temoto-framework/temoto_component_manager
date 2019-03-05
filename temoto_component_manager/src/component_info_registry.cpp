@@ -275,4 +275,126 @@ const std::vector<ComponentInfo>& ComponentInfoRegistry::getRemoteComponents() c
   return remote_components_;
 }
 
+
+/*
+ * ComponentInfoRegistry::findPipes
+ */
+bool ComponentInfoRegistry::findPipes( const LoadPipe::Request& req
+                                     , PipeInfos& pipes_ret) const
+{
+  // Lock the mutex
+  std::lock_guard<std::mutex> guard(read_write_mutex_pipe_);
+
+  // Get the tracking methods of the requested category
+  const auto& pipes_cat = categorized_pipes_.find(req.pipe_category);
+
+  // Throw an error if the requested pipe category does not exist
+  if (pipes_cat == categorized_pipes_.end())
+  {
+    return false;
+  }
+
+  // Get the pipes
+  pipes_ret = pipes_cat->second;
+
+  // Check if there are any required types for the output topics of the pipe
+  if (!req.output_topics.empty())
+  {
+    // Loop over pipes
+    for (auto pipe_it = pipes_ret.begin(); pipe_it != pipes_ret.end(); /* empty */)
+    {
+      bool pipe_suitable = true;
+
+      // Create a copy of the required topics
+      std::vector<diagnostic_msgs::KeyValue> req_topic_types = req.output_topics;
+      std::set<std::string> last_filter_topics = pipe_it->getSegments().back().required_output_topic_types_;
+
+      // The topics that the last filter of the pipe provides
+      for (auto& last_filter_topic : last_filter_topics)
+      {
+        bool topic_found = false;
+
+        // Compare the topic of the last filter with the required topics
+        for (auto rtt_it = req_topic_types.begin(); rtt_it != req_topic_types.end(); rtt_it++)
+        {
+          if (rtt_it->key == last_filter_topic)
+          {
+            topic_found = true;
+            req_topic_types.erase(rtt_it);
+            break;
+          }
+        }
+
+        // If the required topic was not found then break the loop and indicate
+        // that the pipe is not suitable
+        if (!topic_found)
+        {
+          pipe_suitable = false;
+          break;
+        }
+      }
+
+      // Remove the pipe if its last filter does not contain the required topic type
+      if (!pipe_suitable)
+      {
+        pipes_ret.erase(pipe_it);
+      }
+      else
+      {
+        pipe_it++;
+      }
+    }
+
+    // If no pipe was suitable, then throw an error
+    if (pipes_ret.empty())
+    {
+      return false;
+    }
+  }
+
+  // Sort the pipes with decreasing reliability order
+  std::sort( pipes_ret.begin()
+           , pipes_ret.end()
+           , [](const PipeInfo& lhs, const PipeInfo& rhs)
+             {
+               return lhs.reliability_.getReliability() >
+                      rhs.reliability_.getReliability();
+             });
+
+  return true;
+}
+
+/*
+ * ComponentInfoRegistry::updatePipe
+ */
+bool ComponentInfoRegistry::updatePipe( const PipeInfo& pipe_info )
+{
+  // Lock the mutex
+  std::lock_guard<std::mutex> guard(read_write_mutex_pipe_);
+
+  auto pipes = categorized_pipes_.find(pipe_info.getType());
+
+  if (pipes == categorized_pipes_.end())
+  {
+    return false;
+  }
+
+  const auto it = std::find_if( pipes->second.begin()
+                              , pipes->second.end()
+                              , [&](const PipeInfo& ls)
+                              {
+                                return ls == pipe_info;
+                              });
+
+  // Update the local pipe if its found
+  if (it != pipes->second.end())
+  {
+    *it = pipe_info;
+    return true;
+  }
+
+  // Return false if no such pipe was found
+  return false;
+}
+
 } // component_manager namespace

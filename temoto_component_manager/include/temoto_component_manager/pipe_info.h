@@ -130,21 +130,21 @@ public:
    */
 
   /// Get type
-  std::string getType() const
+  const std::string& getType() const
   {
     return type_;
   }
 
   /// Get pipe
-  std::vector<Segment> getPipe() const
+  const std::vector<Segment>& getSegments() const
   {
-    return pipe_;
+    return segments_;
   }
 
   /// Get pipe size
-  unsigned int getPipeSize() const
+  const unsigned int& getPipeSize() const
   {
-    return pipe_.size();
+    return segments_.size();
   }
 
   /*
@@ -152,33 +152,33 @@ public:
    */
 
   /// Set the pipe
-  void setPipe(std::vector<Segment> pipe)
+  void setSegments(const std::vector<Segment>& segments)
   {
-    pipe_ = pipe;
+    segments_ = segments;
   }
 
-  void setType(std::string type)
+  void setType(const std::string& type)
   {
     type_ = type;
   }
 
   /// Add segment
-  void addSegment(Segment segment)
+  void addSegment(const Segment& segment)
   {
-    pipe_.push_back(segment);
+    segments_.push_back(segment);
   }
 
-  std::string toString()
+  std::string toString() const
   {
     std::string str;
     str += "type: " + std::string("TODO") + "\n";
     str += "reliability: " + std::to_string(reliability_.getReliability()) + "\n";
 
-    for (auto& segment : pipe_)
+    for (const auto& segment : segments_)
     {
       str += segment.toString();
 
-      if (&segment != &pipe_.back())
+      if (&segment != &segments_.back())
       {
         str += "| \n";
       }
@@ -195,15 +195,20 @@ public:
    */
   friend bool operator==(const PipeInfo& t1, const PipeInfo& t2)
   {
-    return t1.type_ == t2.type_ && t1.pipe_ == t2.pipe_;
+    return t1.type_ == t2.type_ && t1.segments_ == t2.segments_;
   }
 
 private:
   
   std::string type_;
-  std::vector<Segment> pipe_;
+  std::vector<Segment> segments_;
 };
 
+/**
+ * @brief 
+ * 
+ */
+typedef std::vector<PipeInfo> PipeInfos;
 
 /**
  * @brief PipeInfoPtr
@@ -231,7 +236,7 @@ struct convert<temoto_component_manager::PipeInfo>
   static Node encode(const temoto_component_manager::PipeInfo& pipe_info)
   {
     Node method;
-    std::vector<temoto_component_manager::Segment> pipe = pipe_info.getPipe();
+    std::vector<temoto_component_manager::Segment> pipe = pipe_info.getSegments();
     for (auto& segment : pipe)
     {
       // Encode the segment

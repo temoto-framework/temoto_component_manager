@@ -69,43 +69,40 @@ void ComponentManagerServers::statusCb1(temoto_core::ResourceStatus& srv)
  */
 void ComponentManagerServers::statusCb2(temoto_core::ResourceStatus& srv)
 {
-//   TEMOTO_DEBUG("Received a status message.");
+  TEMOTO_DEBUG("Received a status message.");
 
-//   // If local sensor failed, adjust package reliability and advertise to other managers via
-//   // synchronizer.
-//   if (srv.request.status_code == temoto_core::rmp::status_codes::FAILED)
-//   {
-//     TEMOTO_DEBUG("A resource, that a running tracker depends on, has failed");
+  // If local sensor failed, adjust package reliability and advertise to other managers via
+  // synchronizer.
+  if (srv.request.status_code == temoto_core::rmp::status_codes::FAILED)
+  {
+    TEMOTO_DEBUG("A resource, that a running pipe depends on, has failed");
 
-// //    auto it = allocated_trackers_.find(srv.request.resource_id);
-// //    if (it != allocated_trackers_.end())
+    int val = srv.request.resource_id;
 
-//     int val = srv.request.resource_id;
+    auto it = std::find_if(allocated_pipes_hack_.begin(), allocated_pipes_hack_.end(),
+              [val](const std::pair<int, std::pair<PipeInfo, std::vector<int>>>& pair_in)
+              {
+                for (const auto& client_id : pair_in.second.second)
+                {
+                  if (client_id == val)
+                  {
+                    return true;
+                  }
+                }
+                return false;
+              });
 
-//     auto it = std::find_if(allocated_trackers_hack_.begin(), allocated_trackers_hack_.end(),
-//               [val](const std::pair<int, std::pair<TrackerInfoPtr, std::vector<int>>>& pair_in)
-//               {
-//                 for (const auto& client_id : pair_in.second.second)
-//                 {
-//                   if (client_id == val)
-//                   {
-//                     return true;
-//                   }
-//                 }
-//                 return false;
-//               });
+    if (it != allocated_pipes_hack_.end())
+    {
+      TEMOTO_INFO("Tracker of type '%s' (pipe size: %d) has stopped working",
+                   it->second.first.getType().c_str(),
+                   it->second.first.getPipeSize());
 
-//     if (it != allocated_trackers_hack_.end())
-//     {
-//       TEMOTO_INFO("Tracker of type '%s' (pipe size: %d) has stopped working",
-//                    (it->second.first)->getType().c_str(),
-//                    (it->second.first)->getPipeSize());
-
-//       // Reduce the reliability of the tracker
-//       (it->second.first)->reliability_.adjustReliability(0);
-//       detection_method_history_[(it->second.first)->getType()].adjustReliability(0);
-//     }
-//   }
+      // Reduce the reliability of the pipe
+      it->second.first.reliability_.adjustReliability(0);
+      cir_->updatePipe(it->second.first);
+    }
+  }
 }
 
 /*
@@ -386,7 +383,138 @@ void ComponentManagerServers::unloadComponentCb( LoadComponent::Request& req
  */ 
 void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res)
 {
+  TEMOTO_INFO_STREAM("Received a request: \n" << req << std::endl);
 
+  PipeInfos pipes;
+
+  if (!cir_->findPipes(req, pipes))
+  {
+    throw CREATE_ERROR(temoto_core::error::Code::NO_TRACKERS_FOUND, "No pipes found for the requested category");
+  }
+
+  TEMOTO_DEBUG_STREAM("Found the requested pipe category.");
+
+  /*
+   * Loop over all possible tracking methods until somethin starts to work
+   */
+  for (PipeInfo& pipe : pipes)
+  {
+    TEMOTO_DEBUG_STREAM("Trying pipe: \n" << pipe.toString().c_str());
+
+    try
+    {
+      // Get the id of the pipe, if provided
+      std::string pipe_id = req.pipe_id;
+
+      // Create a new pipe id if it was not specified
+      if (pipe_id.empty())
+      {
+        // Create a unique pipe identifier string
+        pipe_id = "pipe_" + std::to_string(pipe_id_generator_.generateID())
+                + "_at_" + temoto_core::common::getTemotoNamespace();
+      }
+
+      /*
+       * Build the pipe based on the number of segments. If the pipe
+       * contains only one segment, then there are no constraints on
+       * the ouptut topic types. But if the pipe contains multiple segments
+       * then each preceding segment has to provide the topics that are
+       * required by the proceding segment
+       */
+      temoto_core::TopicContainer required_topics;
+
+      if (pipe.getPipeSize() > 1)
+      {
+        // TODO: If the right hand side of the "req_tops" is directly used in the proceeding
+        // for-loop, then it crashes on the second loop. Not sure why.
+        const std::set<std::string>& req_tops = pipe.getSegments().at(1).required_input_topic_types_;
+
+        // Loop over requested topics
+        for (const auto& topic : req_tops)
+        {
+          required_topics.addOutputTopicType(topic);
+        }
+      }
+      else
+      {
+        // TODO: If the right hand side of the "req_tops" is directly used in the proceeding
+        // for-loop, then it crashes on the second loop. Not sure why.
+        const std::set<std::string>& req_tops = pipe.getSegments().at(0).required_output_topic_types_;
+
+        // Loop over requested topics
+        for (const auto& topic : req_tops)
+        {
+          required_topics.addOutputTopicType(topic);
+        }
+      }
+
+      // Loop over the pipe
+      const std::vector<Segment>& segments = pipe.getSegments();
+
+      // TODO: REMOVE AFTER RMP HAS THIS FUNCTIONALITY
+      std::vector<int> sub_resource_ids;
+
+      for (unsigned int i=0; i<segments.size(); i++)
+      {
+        // Clear out the required output topics
+        required_topics.clearOutputTopics();
+
+        // If it is not the last segment then ...
+        if (i != segments.size()-1)
+        {
+          // ... get the requirements for the output topic types from the proceding segment
+          for (const auto& topic_type : segments.at(i+1).required_input_topic_types_)
+          {
+            required_topics.addOutputTopic(topic_type, "/" + pipe_id + "/segment_" + std::to_string(i) + "/" + topic_type);
+          }
+        }
+        else
+        {
+          // ... get the requirements for the output topics from own output topic requirements
+          // TODO: throw if the "required_output_topic_types_" is empty
+          for (const auto& topic_type : segments.at(i).required_output_topic_types_)
+          {
+            required_topics.addOutputTopic(topic_type, "/" + pipe_id + "/segment_" + std::to_string(i) + "/" + topic_type);
+          }
+        }
+
+        // Compose the LoadComponent message
+        temoto_component_manager::LoadComponent load_component_msg;
+        load_component_msg.request.component_type = segments.at(i).segment_type_;
+        load_component_msg.request.input_topics = required_topics.inputTopicsAsKeyValues();
+        load_component_msg.request.output_topics = required_topics.outputTopicsAsKeyValues();
+
+        // Call the Component Manager
+        resource_manager_2_.call<temoto_component_manager::LoadComponent>(temoto_component_manager::srv_name::MANAGER,
+                                                                          temoto_component_manager::srv_name::SERVER,
+                                                                          load_component_msg);
+
+        // TODO: REMOVE AFTER RMP HAS THIS FUNCTIONALITY
+        sub_resource_ids.push_back(load_component_msg.response.rmp.resource_id);
+
+        required_topics.setInputTopicsByKeyValue(load_component_msg.response.output_topics);
+      }
+
+      // Send the output topics of the last segment back via response
+      res.output_topics = required_topics.outputTopicsAsKeyValues();
+
+      // Add the pipe to allocated pipes + increase its reliability
+      pipe.reliability_.adjustReliability();
+      cir_->updatePipe(pipe);
+
+      //allocated_pipes_[res.rmp.resource_id] = pipe;
+      allocated_pipes_hack_[res.rmp.resource_id] = std::pair<PipeInfo, std::vector<int>>(pipe, sub_resource_ids);
+
+      return;
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      // TODO: Make sure that send error add the name of the function where the error was sent
+      SEND_ERROR(error_stack);
+    }
+  }
+
+  throw CREATE_ERROR(temoto_core::error::Code::NO_TRACKERS_FOUND, "Could not find pipes for the requested category");
 }
 
 /*
@@ -394,8 +522,20 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
  */
 void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res)
 {
-
+  // Remove the pipe from the list of allocated pipes
+  auto it = allocated_pipes_hack_.find(res.rmp.resource_id);
+  if (it != allocated_pipes_hack_.end())
+  {
+    TEMOTO_DEBUG_STREAM("Erasing a pipe from the list of allocated pipes");
+    allocated_pipes_hack_.erase(it);
+  }
+  else
+  {
+    throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Could not unload the pipe, because"
+                       " it does not exist in the list of allocated pipes");
+  }
 }
+
 
 /*
  * ComponentManagerServers::processTopics

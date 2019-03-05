@@ -4,6 +4,7 @@
 #include "temoto_component_manager/component_info.h"
 #include "temoto_component_manager/pipe_info.h"
 #include "temoto_component_manager/LoadComponent.h"
+#include "temoto_component_manager/LoadPipe.h"
 
 #include <mutex>
 
@@ -48,6 +49,10 @@ public:
 
   const std::vector<ComponentInfo>& getRemoteComponents() const;
 
+  bool findPipes( const LoadPipe::Request& req, PipeInfos& pipes_ret ) const;
+
+  bool updatePipe( const PipeInfo& pipe_info );
+
 private:
 
   /**
@@ -83,10 +88,13 @@ private:
   std::vector<ComponentInfo> remote_components_;
 
   /// List of categorized pipes
-  std::map<std::string, PipeInfoPtrs> categorized_pipes_;
+  std::map<std::string, PipeInfos> categorized_pipes_;
 
   /// Mutex for protecting component info vectors from data races
   mutable std::mutex read_write_mutex;
+
+  /// Mutex for protecting pipe info vectors from data races
+  mutable std::mutex read_write_mutex_pipe_;
 };
 
 } // component_manager namespace
