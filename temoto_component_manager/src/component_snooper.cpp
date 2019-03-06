@@ -226,6 +226,7 @@ void ComponentSnooper::syncCb(const temoto_core::ConfigSync& msg, const PayloadT
 
 void ComponentSnooper::updateMonitoringTimerCb(const ros::TimerEvent& e)
 {
+  (void)e; // Suppress "unused variable" compiler warnings
 
   // Iterate through local components and check if their reliability has been updated
   for (const auto component : cir_->getLocalComponents())
