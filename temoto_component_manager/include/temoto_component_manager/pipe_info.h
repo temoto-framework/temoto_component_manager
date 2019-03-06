@@ -30,8 +30,7 @@ enum class SegmentCategory : int
  */
 struct Segment
 {
-  std::string segment_category_;                       // Sensor or algorithm or ... TODO: DEPRECATED
-  std::string segment_type_;                           // Camera ... or ARtag detector ...
+  std::string segment_type_;                          // Camera ... or ARtag detector ...
   std::set<std::string> required_input_topic_types_;  // The types of the topics that this segment requires
   std::set<std::string> required_output_topic_types_; // The types of the topics that this segment must publish
 
@@ -51,8 +50,7 @@ struct Segment
   std::string toString() const
   {
     std::string str;
-    str += "|_+_segment category: " + segment_category_ + "\n";
-    str += "| |_segment type: " + segment_type_ + "\n";
+    str += "|_+_segment type: " + segment_type_ + "\n";
 
     // Print out the input topics
     if (!required_input_topic_types_.empty())
@@ -97,8 +95,7 @@ struct Segment
 static bool operator==(const Segment& f1, const Segment& f2)
 {
   // Check the category, type and topic types
-  return f1.segment_category_ == f2.segment_category_ &&
-         f1.segment_type_ == f2.segment_type_ &&
+  return f1.segment_type_ == f2.segment_type_ &&
          f1.required_input_topic_types_ == f2.required_input_topic_types_ &&
          f1.required_output_topic_types_ == f2.required_output_topic_types_;
 }
@@ -142,7 +139,7 @@ public:
   }
 
   /// Get pipe size
-  const unsigned int& getPipeSize() const
+  unsigned int getPipeSize() const
   {
     return segments_.size();
   }
@@ -241,7 +238,6 @@ struct convert<temoto_component_manager::PipeInfo>
     {
       // Encode the segment
       Node segment_node;
-      segment_node["segment_category"] = segment.segment_category_;
       segment_node["segment_type"] = segment.segment_type_;
 
       // Encode the input topic types (if this segment has any)
@@ -294,8 +290,6 @@ struct convert<temoto_component_manager::PipeInfo>
 
       try
       {
-        // TODO: Check if it is even a valid category
-        segment.segment_category_ = (*segment_it)["segment_category"].as<std::string>();
         segment.segment_type_ = (*segment_it)["segment_type"].as<std::string>();
       }
       catch (YAML::InvalidNode e)

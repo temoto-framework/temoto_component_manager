@@ -190,6 +190,45 @@ public:
   }
 
   /**
+   * @brief startPipe
+   * @param pipe_category
+   * @return
+   */
+  temoto_core::TopicContainer startPipe(std::string pipe_category)
+  {
+    // Validate the interface
+    try
+    {
+      validateInterface();
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      throw FORWARD_ERROR(error_stack);
+    }
+
+    // Start filling out the LoadPipe message
+    LoadPipe load_pipe_msg;
+    load_pipe_msg.request.pipe_category = pipe_category;
+
+    try
+    {
+      resource_manager_->template call<LoadPipe>(srv_name::MANAGER_2,
+                                                 srv_name::PIPE_SERVER,
+                                                 load_pipe_msg);
+      allocated_pipes_.push_back(load_pipe_msg);
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      throw FORWARD_ERROR(error_stack);
+    }
+
+    temoto_core::TopicContainer topics_to_return;
+    topics_to_return.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
+
+    return topics_to_return;
+  }
+
+  /**
    * @brief statusInfoCb
    * @param srv
    */
@@ -228,6 +267,12 @@ public:
                                   [&](const temoto_component_manager::LoadComponent& comp) -> bool {
                                     return comp.response.rmp.resource_id == srv.request.resource_id;
                                   });
+
+      auto pipe_it = std::find_if(allocated_pipes_.begin(), allocated_pipes_.end(),
+                                  [&](const LoadPipe& sens) -> bool {
+                                    return sens.response.rmp.resource_id == srv.request.resource_id;
+                                  });
+
       if (comp_it != allocated_components_.end())
       {
         TEMOTO_DEBUG("Unloading");
@@ -247,6 +292,36 @@ public:
           SEND_ERROR(error_stack);
         }
       }
+
+      // If the pipe was found then ...
+      else if (pipe_it != allocated_pipes_.end())
+      {
+        try
+        {
+          // ... unload it and ...
+          TEMOTO_DEBUG("Unloading the pipe");
+          resource_manager_->unloadClientResource(pipe_it->response.rmp.resource_id);
+
+          // ... copy the output topics from the response into the output topics
+          // of the request (since the user still wants to receive the data on the same topics) ...
+          pipe_it->request.output_topics = pipe_it->response.output_topics;
+          pipe_it->request.pipe_id = pipe_it->response.pipe_id;
+
+          // ... and load an alternative pipe. This call automatically
+          // updates the response in allocated pipes vector
+
+          TEMOTO_DEBUG_STREAM("Trying to load an alternative pipe");
+
+          resource_manager_->template call<LoadPipe>(srv_name::MANAGER_2,
+                                                     srv_name::PIPE_SERVER,
+                                                     *pipe_it);
+        }
+        catch(temoto_core::error::ErrorStack& error_stack)
+        {
+          throw FORWARD_ERROR(error_stack);
+        }
+      }
+
       else
       {
         throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
@@ -279,6 +354,8 @@ private:
 
   void(OwnerTask::*update_callback_)(bool) = NULL;
   OwnerTask* owner_instance_;
+
+  std::vector<LoadPipe> allocated_pipes_;
 
   /**
    * @brief validateInterface

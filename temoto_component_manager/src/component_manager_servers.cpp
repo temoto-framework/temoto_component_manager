@@ -251,7 +251,6 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
         res.package_name = alloc_comp_info.getPackageName();
         res.executable = alloc_comp_info.getExecutable();
-        //res.rmp = load_er_msg.response.rmp;
 
         return;
       }
@@ -297,7 +296,6 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
         // Fill out the response about which particular component was chosen
         res.package_name = ci.getPackageName();
         res.executable = ci.getExecutable();
-        res.rmp = load_er_msg.response.rmp;
 
         ci.adjustReliability(1.0);
         cir_->updateLocalComponent(ci);
@@ -372,6 +370,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 void ComponentManagerServers::unloadComponentCb( LoadComponent::Request& req
                                                , LoadComponent::Response& res)
 {
+  // Suppress "unused parameter" compiler warnings
+  (void)req;
+  (void)res;
+
   TEMOTO_DEBUG("received a request to stop component with id '%ld'", res.rmp.resource_id);
   allocated_components_.erase(res.rmp.resource_id);
   allocated_ext_resources_.erase(res.rmp.resource_id);
@@ -383,7 +385,7 @@ void ComponentManagerServers::unloadComponentCb( LoadComponent::Request& req
  */ 
 void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res)
 {
-  TEMOTO_INFO_STREAM("Received a request: \n" << req << std::endl);
+  TEMOTO_DEBUG_STREAM("Received a request: \n" << req << std::endl);
 
   PipeInfos pipes;
 
@@ -422,31 +424,6 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
        * required by the proceding segment
        */
       temoto_core::TopicContainer required_topics;
-
-      if (pipe.getPipeSize() > 1)
-      {
-        // TODO: If the right hand side of the "req_tops" is directly used in the proceeding
-        // for-loop, then it crashes on the second loop. Not sure why.
-        const std::set<std::string>& req_tops = pipe.getSegments().at(1).required_input_topic_types_;
-
-        // Loop over requested topics
-        for (const auto& topic : req_tops)
-        {
-          required_topics.addOutputTopicType(topic);
-        }
-      }
-      else
-      {
-        // TODO: If the right hand side of the "req_tops" is directly used in the proceeding
-        // for-loop, then it crashes on the second loop. Not sure why.
-        const std::set<std::string>& req_tops = pipe.getSegments().at(0).required_output_topic_types_;
-
-        // Loop over requested topics
-        for (const auto& topic : req_tops)
-        {
-          required_topics.addOutputTopicType(topic);
-        }
-      }
 
       // Loop over the pipe
       const std::vector<Segment>& segments = pipe.getSegments();
@@ -522,6 +499,8 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
  */
 void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res)
 {
+  (void)req; // Suppress "unused parameter" compiler warnings
+
   // Remove the pipe from the list of allocated pipes
   auto it = allocated_pipes_hack_.find(res.rmp.resource_id);
   if (it != allocated_pipes_hack_.end())

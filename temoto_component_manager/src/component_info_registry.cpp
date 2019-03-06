@@ -149,13 +149,13 @@ bool ComponentInfoRegistry::findComponents( LoadComponent::Request& req
   std::vector<ComponentInfo> candidates;
 
   // Find the devices that follow the "type" criteria
-  auto it = std::copy_if(components.begin()
-                       , components.end()
-                       , std::back_inserter(candidates)
-                       , [&](const ComponentInfo& s)
-                         {
-                           return s.getType() == req.component_type;
-                         });
+  std::copy_if(components.begin()
+              , components.end()
+              , std::back_inserter(candidates)
+              , [&](const ComponentInfo& s)
+                {
+                  return s.getType() == req.component_type;
+                });
 
   // The requested type of component is not available
   if (candidates.empty())
@@ -245,7 +245,6 @@ bool ComponentInfoRegistry::findComponent( const ComponentInfo &si
                                    , const std::vector<ComponentInfo>& components
                                    , ComponentInfo& si_ret ) const
 {
-
   const auto it = std::find_if( components.begin()
                               , components.end()
                               , [&](const ComponentInfo& rs)
@@ -364,32 +363,65 @@ bool ComponentInfoRegistry::findPipes( const LoadPipe::Request& req
   return true;
 }
 
-/*
- * ComponentInfoRegistry::updatePipe
- */
-bool ComponentInfoRegistry::updatePipe( const PipeInfo& pipe_info )
+PipeInfo* ComponentInfoRegistry::findPipe ( const PipeInfo& pi )
+{
+  // Check if the requested type exists
+  const auto pipes_it = categorized_pipes_.find(pi.getType());
+  PipeInfo* pi_ret = NULL;
+
+  if (pipes_it == categorized_pipes_.end())
+  {
+    return pi_ret;
+  }
+  
+  // Check if there is such a pipe as requested
+  const auto pipe_it = std::find_if( pipes_it->second.begin()
+    , pipes_it->second.end()
+    , [&](const PipeInfo& rs)
+    {
+      return rs == pi;
+    });
+
+  if (pipe_it == pipes_it->second.end())
+  {
+    return pi_ret;
+  }
+  else
+  {
+    pi_ret = &(*pipe_it);
+    return pi_ret;
+  }
+}
+
+bool ComponentInfoRegistry::addPipe( const PipeInfo& pi)
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex_pipe_);
 
-  auto pipes = categorized_pipes_.find(pipe_info.getType());
-
-  if (pipes == categorized_pipes_.end())
+  // Check if there is no such pipe
+  PipeInfo* pi_ret = findPipe(pi);
+  if (pi_ret == NULL)
   {
-    return false;
+    categorized_pipes_[pi.getType()].push_back(pi);
+    return true;
   }
 
-  const auto it = std::find_if( pipes->second.begin()
-                              , pipes->second.end()
-                              , [&](const PipeInfo& ls)
-                              {
-                                return ls == pipe_info;
-                              });
+  // Return false if such pipe already exists
+  return false;
+}
 
-  // Update the local pipe if its found
-  if (it != pipes->second.end())
+/*
+ * ComponentInfoRegistry::updatePipe
+ */
+bool ComponentInfoRegistry::updatePipe( const PipeInfo& pi )
+{
+  // Lock the mutex
+  std::lock_guard<std::mutex> guard(read_write_mutex_pipe_);
+
+  PipeInfo* pi_ret = findPipe(pi);
+  if (pi_ret != NULL)
   {
-    *it = pipe_info;
+    *pi_ret = pi;
     return true;
   }
 

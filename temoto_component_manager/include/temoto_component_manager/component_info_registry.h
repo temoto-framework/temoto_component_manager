@@ -51,7 +51,9 @@ public:
 
   bool findPipes( const LoadPipe::Request& req, PipeInfos& pipes_ret ) const;
 
-  bool updatePipe( const PipeInfo& pipe_info );
+  bool addPipe( const PipeInfo& pi);
+
+  bool updatePipe( const PipeInfo& pi );
 
 private:
 
@@ -65,8 +67,8 @@ private:
    * @return false Did not find any components
    */
   bool findComponents( temoto_component_manager::LoadComponent::Request& req
-                  , const std::vector<ComponentInfo>& components
-                  , std::vector<ComponentInfo>& si_ret ) const;
+                     , const std::vector<ComponentInfo>& components
+                     , std::vector<ComponentInfo>& si_ret ) const;
 
   /**
    * @brief Returns one component that matches the requested criteria the most
@@ -78,8 +80,17 @@ private:
    * @return false if component was not found
    */
   bool findComponent( const ComponentInfo& si
-                 , const std::vector<ComponentInfo>& components
-                 , ComponentInfo& si_ret ) const;
+                    , const std::vector<ComponentInfo>& components
+                    , ComponentInfo& si_ret ) const;
+
+  /**
+   * @brief 
+   * 
+   * @param pi 
+   * @param pi_ret 
+   * @return PipeInfo* 
+   */
+  PipeInfo* findPipe ( const PipeInfo& pi );
 
   /// List of all locally defined components.
   std::vector<ComponentInfo> local_components_;
