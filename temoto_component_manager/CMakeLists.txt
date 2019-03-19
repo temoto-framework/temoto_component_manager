@@ -11,7 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   genmsg
   std_msgs
   diagnostic_msgs
-	message_generation
+  message_generation
 )
 
 add_service_files(FILES
