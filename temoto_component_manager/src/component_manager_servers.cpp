@@ -445,6 +445,10 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
 
       for (unsigned int i=0; i<segments.size(); i++)
       {
+        // Declare a LoadComponent message
+        temoto_component_manager::LoadComponent load_component_msg;
+        load_component_msg.request.component_type = segments.at(i).segment_type_;
+
         // Clear out the required output topics
         required_topics.clearOutputTopics();
 
@@ -467,11 +471,18 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
           }
         }
 
-        // Compose the LoadComponent message
-        temoto_component_manager::LoadComponent load_component_msg;
-        load_component_msg.request.component_type = segments.at(i).segment_type_;
         load_component_msg.request.input_topics = required_topics.inputTopicsAsKeyValues();
         load_component_msg.request.output_topics = required_topics.outputTopicsAsKeyValues();
+
+        // Check if any parameters were specified for this segment
+        for (const auto& seg_param_spec : req.pipe_segment_specifiers)
+        {
+          if (seg_param_spec.segment_index == i)
+          {
+            load_component_msg.request.required_parameters = seg_param_spec.parameters;
+            break;
+          }
+        }
 
         // Call the Component Manager
         resource_manager_2_.call<temoto_component_manager::LoadComponent>(temoto_component_manager::srv_name::MANAGER,
