@@ -141,6 +141,40 @@ bool ComponentInfoRegistry::findRemoteComponent( const ComponentInfo &si ) const
   return findComponent(si, remote_components_, si_ret);
 }
 
+bool ComponentInfoRegistry::compareTopics( const std::vector<temoto_core::StringPair>& l_topics
+                                         , const std::vector<diagnostic_msgs::KeyValue>& r_topics) const
+{
+  if (l_topics.size() < r_topics.size())
+    return true;
+
+  // Make a copy of the input topics
+  std::vector<StringPair> l_topics_copy = l_topics;
+
+  // Start looking for the requested topic types
+  for (const auto& r_topic : r_topics)
+  {
+    bool found = false;
+    for (auto it=l_topics_copy.begin(); it != l_topics_copy.end(); it++)
+    {
+      // If the topic was found then remove it from the copy list
+      if (r_topic.key == it->first)
+      {
+        found = true;
+        l_topics_copy.erase(it);
+        break;
+      }
+    }
+
+    // If this topic type was not found then return with false
+    if (!found)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool ComponentInfoRegistry::findComponents( LoadComponent::Request& req
                                     , const std::vector<ComponentInfo>& components
                                     , std::vector<ComponentInfo>& si_ret ) const
@@ -184,41 +218,33 @@ bool ComponentInfoRegistry::findComponents( LoadComponent::Request& req
                             });
   }
 
+  // If input topics are specified ...
+  if (!req.input_topics.empty())
+  {
+    it_end = std::remove_if(candidates.begin(), it_end,
+                            [&](ComponentInfo s)
+                            {
+                              return compareTopics(s.getInputTopics(), req.input_topics);
+                            });
+  }
+
   // If output topics are specified ...
   if (!req.output_topics.empty())
   {
     it_end = std::remove_if(candidates.begin(), it_end,
                             [&](ComponentInfo s)
                             {
-                              if (s.getOutputTopics().size() < req.output_topics.size())
-                                return true;
+                              return compareTopics(s.getOutputTopics(), req.output_topics);
+                            });
+  }
 
-                              // Make a copy of the input topics
-                              std::vector<StringPair> output_topics_copy = s.getOutputTopics();
-
-                              // Start looking for the requested topic types
-                              for (auto& topic : req.output_topics)
-                              {
-                                bool found = false;
-                                for (auto it=output_topics_copy.begin(); it != output_topics_copy.end(); it++)
-                                {
-                                  // If the topic was found then remove it from the copy list
-                                  if (topic.key == it->first)
-                                  {
-                                    found = true;
-                                    output_topics_copy.erase(it);
-                                    break;
-                                  }
-                                }
-
-                                // If this topic type was not found then return with false
-                                if (!found)
-                                {
-                                  return true;
-                                }
-                              }
-
-                              return false;
+  // If required parameters are specified ...
+  if (!req.required_parameters.empty())
+  {
+    it_end = std::remove_if(candidates.begin(), it_end,
+                            [&](ComponentInfo s)
+                            {
+                              return compareTopics(s.getRequiredParameters(), req.required_parameters);
                             });
   }
 

@@ -3,5 +3,5 @@ string type
 
 ---
 
-# List of devices
-string[] list
+# List of components as yaml string
+temoto_component_manager/Component[] component_infos

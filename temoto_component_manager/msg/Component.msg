@@ -1,6 +1,9 @@
 # Remote Management Request
 temoto_core/RMPRequest rmp
 
+# Name of the component
+string component_name
+
 # Type of the requested component (required).
 string component_type
 
@@ -24,23 +27,7 @@ diagnostic_msgs/KeyValue[] output_topics
 # Same idea applies here as it did with the output_topics
 diagnostic_msgs/KeyValue[] input_topics
 
-# Same idea applies here as it did with the output_topics
+# Similar to output topics but in this case the key is the type
+# of the parameter
 diagnostic_msgs/KeyValue[] required_parameters
 
----
-
-# Remote Management Response
-temoto_core/RMPResponse rmp
-
-# name of the package
-string package_name
-
-# name of the executable/launchable/runnable
-string executable
-
-# Actual output topics
-diagnostic_msgs/KeyValue[] output_topics
-
-diagnostic_msgs/KeyValue[] input_topics
-
-diagnostic_msgs/KeyValue[] required_parameters

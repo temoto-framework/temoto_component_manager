@@ -58,6 +58,17 @@ public:
 private:
 
   /**
+   * @brief 
+   * 
+   * @param l_topics 
+   * @param r_topics 
+   * @return true if topics are the same
+   * @return false if topics are different
+   */
+  bool compareTopics( const std::vector<temoto_core::StringPair>& l_topics
+                    , const std::vector<diagnostic_msgs::KeyValue>& r_topics ) const;
+
+  /**
    * @brief Returns a vector of components that follow the requested criteria
    * 
    * @param req Requested component

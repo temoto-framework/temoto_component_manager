@@ -32,13 +32,34 @@ std::string ComponentInfo::getName() const
 // Get input topics
 const std::vector<StringPair>& ComponentInfo::getInputTopics() const
 {
-  return input_topics_;
+  return input_topics_.getInputTopics();
+}
+
+std::vector<diagnostic_msgs::KeyValue> ComponentInfo::getInputTopicsAsKeyVal() const
+{
+  return input_topics_.inputTopicsAsKeyValues();
 }
 
 // Get output topics
 const std::vector<StringPair>& ComponentInfo::getOutputTopics() const
 {
-  return output_topics_;
+  return output_topics_.getOutputTopics();
+}
+
+std::vector<diagnostic_msgs::KeyValue> ComponentInfo::getOutputTopicsAsKeyVal() const
+{
+  return output_topics_.outputTopicsAsKeyValues();
+}
+
+// Get required parameters
+const std::vector<StringPair>& ComponentInfo::getRequiredParameters() const
+{
+  return required_parameters_.getInputTopics();
+}
+
+std::vector<diagnostic_msgs::KeyValue> ComponentInfo::getRequiredParametersAsKeyVal() const
+{
+  return input_topics_.inputTopicsAsKeyValues();
 }
 
 // Get topic by type
@@ -59,13 +80,13 @@ std::string ComponentInfo::getTopicByType(const std::string& type, const std::ve
 // Get output topic
 std::string ComponentInfo::getInputTopic(const std::string& type)
 {
-  return getTopicByType(type, input_topics_);
+  return getTopicByType(type, input_topics_.getInputTopics());
 }
 
 // Get output topic
 std::string ComponentInfo::getOutputTopic(const std::string& type)
 {
-  return getTopicByType(type, output_topics_);
+  return getTopicByType(type, output_topics_.getOutputTopics());
 }
 
 // Get component type
@@ -161,12 +182,17 @@ void ComponentInfo::setName(std::string name)
 
 void ComponentInfo::addTopicIn(StringPair topic)
 {
-  input_topics_.push_back(topic);
+  input_topics_.addInputTopic(topic.first, topic.second);
 }
 
 void ComponentInfo::addTopicOut(StringPair topic)
 {
-  output_topics_.push_back(topic);
+  output_topics_.addOutputTopic(topic.first, topic.second);
+}
+
+void ComponentInfo::addRequiredParameter(temoto_core::StringPair required_parameter)
+{
+  required_parameters_.addInputTopic(required_parameter.first, required_parameter.second);
 }
 
 void ComponentInfo::setType(std::string component_type)

@@ -6,6 +6,7 @@
 #include "temoto_component_manager/ListComponents.h"
 #include "temoto_component_manager/LoadComponent.h"
 #include "temoto_component_manager/LoadPipe.h"
+#include "temoto_component_manager/Component.h"
 
 namespace temoto_component_manager
 {

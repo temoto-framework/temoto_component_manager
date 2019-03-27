@@ -39,9 +39,15 @@ public:
 
   // Get input topics
   const std::vector<temoto_core::StringPair>& getInputTopics() const;
+  std::vector<diagnostic_msgs::KeyValue> getInputTopicsAsKeyVal() const;
 
   // Get output topics
   const std::vector<temoto_core::StringPair>& getOutputTopics() const;
+  std::vector<diagnostic_msgs::KeyValue> getOutputTopicsAsKeyVal() const;
+
+  // Get output topics
+  const std::vector<temoto_core::StringPair>& getRequiredParameters() const;
+  std::vector<diagnostic_msgs::KeyValue> getRequiredParametersAsKeyVal() const;
 
   // Get topic by type
   std::string getTopicByType(const std::string& type, const std::vector<temoto_core::StringPair>& topics);
@@ -51,6 +57,9 @@ public:
 
   // Get output topic
   std::string getOutputTopic(const std::string& type);
+
+  // Get required parameter
+  //std::string getRequiredParameter(const std::string &type);
 
   // Get component type
   std::string getType() const;
@@ -86,6 +95,8 @@ public:
 
   void addTopicOut(temoto_core::StringPair topic);
 
+  void addRequiredParameter(temoto_core::StringPair required_parameter);
+
   void setType(std::string component_type);
 
   void setPackageName(std::string package_name);
@@ -110,8 +121,9 @@ private:
   std::string executable_;
   std::string description_;
   temoto_core::Reliability reliability_;
-  std::vector<temoto_core::StringPair> input_topics_;
-  std::vector<temoto_core::StringPair> output_topics_;
+  temoto_core::TopicContainer input_topics_;
+  temoto_core::TopicContainer output_topics_;
+  temoto_core::TopicContainer required_parameters_;
   bool advertised_ = false;
 };
 
@@ -214,6 +226,13 @@ struct convert<temoto_component_manager::ComponentInfo>
     }
     node["output_topics"] = output_topics_node;
 
+    Node required_parameters_node;
+    for (auto& parameters : component.getRequiredParameters())
+    {
+      required_parameters_node[parameters.first] = parameters.second;
+    }
+    node["required_parameters"] = required_parameters_node;
+
     return node;
   }
 
@@ -240,16 +259,6 @@ struct convert<temoto_component_manager::ComponentInfo>
 
       code = 4;
       component.setExecutable(node["executable"].as<std::string>());
-
-      // Get the output_topics
-      code = 6;
-      Node output_topics_node = node["output_topics"];
-      for (YAML::const_iterator node_it = output_topics_node.begin(); node_it != output_topics_node.end(); ++node_it)
-      {
-        component.addTopicOut({node_it->first.as<std::string>(),
-                               node_it->second.as<std::string>()});
-      }
-
     }
     catch (YAML::InvalidNode e)
     {
@@ -284,6 +293,36 @@ struct convert<temoto_component_manager::ComponentInfo>
       }
     }
     catch (YAML::InvalidNode e)
+    {
+    }
+
+    // Get the output_topics
+    try
+    {
+      Node output_topics_node = node["output_topics"];
+      for (YAML::const_iterator node_it = output_topics_node.begin()
+          ; node_it != output_topics_node.end()
+          ; ++node_it)
+      {
+        component.addTopicOut({node_it->first.as<std::string>(), node_it->second.as<std::string>()});
+      }
+    }
+    catch(YAML::InvalidNode e)
+    {
+    }
+
+    // Get the required_parameters
+    try
+    {
+      Node required_parameters_node = node["required_parameters"];
+      for (YAML::const_iterator node_it = required_parameters_node.begin()
+          ; node_it != required_parameters_node.end()
+          ; ++node_it)
+      {
+        component.addRequiredParameter({node_it->first.as<std::string>(), node_it->second.as<std::string>()});
+      }
+    }
+    catch(YAML::InvalidNode e)
     {
     }
 

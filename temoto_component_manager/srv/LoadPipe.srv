@@ -12,6 +12,9 @@ uint8 ARTAG = 1     # Requires the "tag_id" field to be filled
 # certain data to specific topics, then these are described in here. 
 diagnostic_msgs/KeyValue[] output_topics
 
+# Specifies certain required parameters of a pipe
+temoto_component_manager/PipeSegmentSpecifier[] pipe_segment_specifiers
+
 # Normally left empty, used by context manager interface status callback
 string pipe_id
 

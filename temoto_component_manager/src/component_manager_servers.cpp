@@ -116,7 +116,16 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
   {
     if (component.getType() == req.type)
     {
-      res.list.push_back(component.getName());
+      temoto_component_manager::Component comp_msg;
+      comp_msg.component_name = component.getName();
+      comp_msg.component_type = component.getType();
+      comp_msg.package_name = component.getPackageName();
+      comp_msg.executable = component.getExecutable();
+      comp_msg.input_topics = component.getInputTopicsAsKeyVal();
+      comp_msg.output_topics = component.getOutputTopicsAsKeyVal();
+      comp_msg.required_parameters = component.getRequiredParametersAsKeyVal();
+    
+      res.component_infos.push_back(comp_msg);
     }
   }
 
@@ -277,6 +286,9 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
       // Remap the output topics if requested
       processTopics(req.output_topics, res.output_topics, load_er_msg, ci, "out");
+
+      // Remap the parameters if requested
+      processTopics(req.required_parameters, res.required_parameters, load_er_msg, ci, "parameters");
             
       TEMOTO_DEBUG( "Found a suitable local component: '%s', '%s', '%s', reliability %.3f"
                  , load_er_msg.request.action.c_str()
@@ -543,6 +555,10 @@ void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyVal
   else if (direction == "out")
   {
     component_info_topics = component_info.getOutputTopics();
+  }
+  else if (direction == "parameters")
+  {
+    component_info_topics = component_info.getRequiredParameters();
   }
 
   // If no topics were requested, then return a list of all topics this component publishes
