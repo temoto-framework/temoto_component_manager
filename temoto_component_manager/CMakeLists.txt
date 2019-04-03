@@ -16,11 +16,14 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(FILES
   Component.msg
+  Pipe.msg
+  PipeSegment.msg
   PipeSegmentSpecifier.msg
 )
 
 add_service_files(FILES
   ListComponents.srv
+  ListPipes.srv
   LoadComponent.srv
   LoadPipe.srv
 )

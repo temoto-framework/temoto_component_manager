@@ -1,6 +1,3 @@
-# Remote Management Request
-temoto_core/RMPRequest rmp
-
 # Name of the component
 string component_name
 

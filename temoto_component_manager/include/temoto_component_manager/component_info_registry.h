@@ -49,6 +49,8 @@ public:
 
   const std::vector<ComponentInfo>& getRemoteComponents() const;
 
+  const std::map<std::string, PipeInfos>& getPipes() const;
+
   bool findPipes( const LoadPipe::Request& req, PipeInfos& pipes_ret ) const;
 
   bool addPipe( const PipeInfo& pi);

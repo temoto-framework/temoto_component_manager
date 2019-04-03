@@ -33,6 +33,7 @@ struct Segment
   std::string segment_type_;                          // Camera ... or ARtag detector ...
   std::set<std::string> required_input_topic_types_;  // The types of the topics that this segment requires
   std::set<std::string> required_output_topic_types_; // The types of the topics that this segment must publish
+  std::set<std::string> required_parameters_;         // The types of parameters this segment requires
 
   /// add input topic type
   void addInputTopicType(std::string topic_type)
@@ -44,6 +45,12 @@ struct Segment
   void addOutputTopicType(std::string topic_type)
   {
     required_output_topic_types_.insert(topic_type);
+  }
+
+  /// add output topic type
+  void addRequiredParameter(std::string required_parameter)
+  {
+    required_parameters_.insert(required_parameter);
   }
 
   /// to string
@@ -97,7 +104,8 @@ static bool operator==(const Segment& f1, const Segment& f2)
   // Check the category, type and topic types
   return f1.segment_type_ == f2.segment_type_ &&
          f1.required_input_topic_types_ == f2.required_input_topic_types_ &&
-         f1.required_output_topic_types_ == f2.required_output_topic_types_;
+         f1.required_output_topic_types_ == f2.required_output_topic_types_ &&
+         f1.required_parameters_ == f2.required_parameters_;
 }
 
 /**
@@ -221,7 +229,7 @@ typedef std::vector<PipeInfoPtr> PipeInfoPtrs;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
- *                      YAML PARSER FOR TRACKER INFO CLASS
+ *                      YAML PARSER FOR PIPE INFO CLASS
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -255,6 +263,15 @@ struct convert<temoto_component_manager::PipeInfo>
         for (auto& topic_type : segment.required_output_topic_types_)
         {
           segment_node["output_topic_types"].push_back(topic_type);
+        }
+      }
+
+      // Encode the output topic types (if this segment has any)
+      if (segment.required_parameters_.size() != 0)
+      {
+        for (auto& parameter : segment.required_parameters_)
+        {
+          segment_node["required_parameters"].push_back(parameter);
         }
       }
 
@@ -321,6 +338,20 @@ struct convert<temoto_component_manager::PipeInfo>
         for (YAML::const_iterator topics_it = output_topics_node.begin(); topics_it != output_topics_node.end(); ++topics_it)
         {
           segment.addOutputTopicType(topics_it->as<std::string>());
+        }
+      }
+      catch (YAML::InvalidNode e)
+      {
+        // REPORT OR DO SOMETHING
+      }
+
+      // Get the output topic types (if there are any)
+      try
+      {
+        Node parameters_node = (*segment_it)["required_parameters"];
+        for (YAML::const_iterator parameters_it = parameters_node.begin(); parameters_it != parameters_node.end(); ++parameters_it)
+        {
+          segment.addOutputTopicType(parameters_it->as<std::string>());
         }
       }
       catch (YAML::InvalidNode e)

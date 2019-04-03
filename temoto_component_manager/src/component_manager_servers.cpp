@@ -29,6 +29,14 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
   resource_manager_1_.registerStatusCb(&ComponentManagerServers::statusCb1);
   resource_manager_2_.registerStatusCb(&ComponentManagerServers::statusCb2);
 
+  list_components_server_ = nh_.advertiseService( srv_name::LIST_COMPONENTS_SERVER
+                                                , &ComponentManagerServers::listComponentsCb
+                                                , this);
+
+  list_pipes_server_ = nh_.advertiseService( srv_name::LIST_PIPES_SERVER
+                                                , &ComponentManagerServers::listPipesCb
+                                                , this);
+
   TEMOTO_INFO("Component manager is ready.");
 }
 
@@ -114,7 +122,7 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
   // Find the devices with the required type
   for (const auto& component : cir_->getLocalComponents())
   {
-    if (component.getType() == req.type)
+    if (component.getType() == req.type || req.type.empty())
     {
       temoto_component_manager::Component comp_msg;
       comp_msg.component_name = component.getName();
@@ -129,6 +137,34 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
     }
   }
 
+  return true;
+}
+
+/*
+ * ComponentManagerServers::listPipesCb
+ */
+bool ComponentManagerServers::listPipesCb( ListPipes::Request& req
+                                         , ListPipes::Response& res)
+{
+  // TODO: Find the pipes with the required type
+  for (const auto& pipe_category : cir_->getPipes())
+  {
+    for (const auto& pipe : pipe_category.second)
+    {
+      Pipe pipe_msg;
+      pipe_msg.pipe_type = pipe.getType();
+
+      for (const auto& segment : pipe.getSegments())
+      {
+        PipeSegment segment_msg;
+        segment_msg.segment_type = segment.segment_type_;
+        segment_msg.required_parameters = std::vector<std::string>(
+          segment.required_parameters_.begin(), segment.required_parameters_.end());
+        pipe_msg.segments.push_back(segment_msg);
+      }
+      res.pipe_infos.push_back(pipe_msg);
+    }
+  }
   return true;
 }
 

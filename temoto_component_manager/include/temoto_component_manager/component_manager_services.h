@@ -4,9 +4,11 @@
 #include <string>
 #include "temoto_core/rmp/resource_manager_services.h"
 #include "temoto_component_manager/ListComponents.h"
+#include "temoto_component_manager/ListPipes.h"
 #include "temoto_component_manager/LoadComponent.h"
 #include "temoto_component_manager/LoadPipe.h"
 #include "temoto_component_manager/Component.h"
+#include "temoto_component_manager/Pipe.h"
 
 namespace temoto_component_manager
 {
@@ -19,6 +21,9 @@ namespace temoto_component_manager
 
     const std::string MANAGER_2 = "component_manager_pipe";
     const std::string PIPE_SERVER = "load_pipe";
+
+    const std::string LIST_COMPONENTS_SERVER = "list_components_server";
+    const std::string LIST_PIPES_SERVER = "list_pipes_server";
   }
 }
 

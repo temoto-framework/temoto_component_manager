@@ -1,0 +1,7 @@
+# Type of the pipes required to be listed
+string type
+
+---
+
+# List of components as yaml string
+temoto_component_manager/Pipe[] pipe_infos

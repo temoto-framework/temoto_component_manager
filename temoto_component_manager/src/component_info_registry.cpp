@@ -300,6 +300,10 @@ const std::vector<ComponentInfo>& ComponentInfoRegistry::getRemoteComponents() c
   return remote_components_;
 }
 
+const std::map<std::string, PipeInfos>& ComponentInfoRegistry::getPipes() const
+{
+  return categorized_pipes_;
+}
 
 /*
  * ComponentInfoRegistry::findPipes

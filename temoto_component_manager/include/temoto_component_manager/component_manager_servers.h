@@ -41,8 +41,8 @@ public:
     
 private:
 
-  // TODO: Unused service, should be removed
   bool listComponentsCb(ListComponents::Request& req, ListComponents::Response& res);
+  bool listPipesCb(ListPipes::Request& req, ListPipes::Response& res);
 
   /**
    * @brief Callback to a service that executes/runs a requested device
@@ -110,6 +110,10 @@ private:
    * @return temoto_core::temoto_id::ID 
    */
   temoto_core::temoto_id::ID checkIfInUse( const std::vector<ComponentInfo>& cis_to_check) const;
+
+  ros::NodeHandle nh_;
+  ros::ServiceServer list_components_server_;
+  ros::ServiceServer list_pipes_server_;
 
   /// Pointer to a central Component Info Registry object.
   ComponentInfoRegistry* cir_;
