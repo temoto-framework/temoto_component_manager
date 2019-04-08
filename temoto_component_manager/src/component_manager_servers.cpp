@@ -153,6 +153,7 @@ bool ComponentManagerServers::listPipesCb( ListPipes::Request& req
     {
       Pipe pipe_msg;
       pipe_msg.pipe_type = pipe.getType();
+      pipe_msg.pipe_name = pipe.getName();
 
       for (const auto& segment : pipe.getSegments())
       {

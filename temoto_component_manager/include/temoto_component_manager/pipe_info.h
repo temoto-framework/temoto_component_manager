@@ -130,6 +130,14 @@ public:
 
   temoto_core::Reliability reliability_;
 
+  PipeInfo(){}
+
+  PipeInfo(const PipeInfo& pipe_info, std::string name)
+  : PipeInfo(pipe_info)
+  {
+    name_ = name;
+  }
+
   /*
    * Getters
    */
@@ -138,6 +146,11 @@ public:
   const std::string& getType() const
   {
     return type_;
+  }
+
+  const std::string& getName() const
+  {
+    return name_;
   }
 
   /// Get pipe
@@ -165,6 +178,11 @@ public:
   void setType(const std::string& type)
   {
     type_ = type;
+  }
+
+  void setName(std::string name)
+  {
+    name_ = name;
   }
 
   /// Add segment
@@ -206,6 +224,7 @@ public:
 private:
   
   std::string type_;
+  std::string name_;
   std::vector<Segment> segments_;
 };
 

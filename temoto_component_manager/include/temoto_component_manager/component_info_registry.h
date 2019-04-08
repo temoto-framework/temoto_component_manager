@@ -5,6 +5,7 @@
 #include "temoto_component_manager/pipe_info.h"
 #include "temoto_component_manager/LoadComponent.h"
 #include "temoto_component_manager/LoadPipe.h"
+#include "temoto_core/common/temoto_id.h"
 
 #include <mutex>
 
@@ -113,6 +114,9 @@ private:
 
   /// List of categorized pipes
   std::map<std::string, PipeInfos> categorized_pipes_;
+
+  /// Responsible for grenerating uniquie pipe_info ids
+  temoto_core::temoto_id::IDManager pipe_info_id_manager_;
 
   /// Mutex for protecting component info vectors from data races
   mutable std::mutex read_write_mutex;

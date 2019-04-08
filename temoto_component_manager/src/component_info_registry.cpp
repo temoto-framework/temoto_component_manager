@@ -326,6 +326,23 @@ bool ComponentInfoRegistry::findPipes( const LoadPipe::Request& req
   // Get the pipes
   pipes_ret = pipes_cat->second;
 
+  // Check if a specific pipe (pipe_name is specified) is requested
+  if (!req.pipe_name.empty())
+  {
+    // PipeInfos pipes
+    PipeInfos pipes_ret_cpy;
+    for (const auto& pipe_ret : pipes_ret_cpy)
+    {
+      if(pipe_ret.getName() == req.pipe_name)
+      {
+        pipes_ret.clear();
+        pipes_ret.push_back(pipe_ret);
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Check if there are any required types for the output topics of the pipe
   if (!req.output_topics.empty())
   {
@@ -432,7 +449,9 @@ bool ComponentInfoRegistry::addPipe( const PipeInfo& pi)
   PipeInfo* pi_ret = findPipe(pi);
   if (pi_ret == NULL)
   {
-    categorized_pipes_[pi.getType()].push_back(pi);
+    // Create an unique identifier for this specific pipe_info instance
+    std::string pipe_name = pi.getType() + std::to_string(pipe_info_id_manager_.generateID());
+    categorized_pipes_[pi.getType()].emplace_back(pi, pipe_name);
     return true;
   }
 
