@@ -145,7 +145,9 @@ bool ComponentInfoRegistry::compareTopics( const std::vector<temoto_core::String
                                          , const std::vector<diagnostic_msgs::KeyValue>& r_topics) const
 {
   if (l_topics.size() < r_topics.size())
+  { 
     return true;
+  }
 
   // Make a copy of the input topics
   std::vector<StringPair> l_topics_copy = l_topics;
@@ -182,8 +184,25 @@ bool ComponentInfoRegistry::findComponents( LoadComponent::Request& req
   // Local list of devices that follow the requirements
   std::vector<ComponentInfo> candidates;
 
+  // Check if the name of the component is required
+  if (!req.component_name.empty())
+  {
+    std::copy_if( components.begin()
+                , components.end()
+                , std::back_inserter(candidates)
+                , [&](const ComponentInfo& s)
+                  {
+                    return s.getName() == req.component_name;
+                  });
+
+    if (candidates.empty())
+    {
+      return false;
+    }
+  }
+
   // Find the devices that follow the "type" criteria
-  std::copy_if(components.begin()
+  std::copy_if( components.begin()
               , components.end()
               , std::back_inserter(candidates)
               , [&](const ComponentInfo& s)
@@ -330,17 +349,23 @@ bool ComponentInfoRegistry::findPipes( const LoadPipe::Request& req
   if (!req.pipe_name.empty())
   {
     // PipeInfos pipes
-    PipeInfos pipes_ret_cpy;
+    PipeInfos pipes_ret_cpy = pipes_ret;
+    bool named_pipe_found = false;
     for (const auto& pipe_ret : pipes_ret_cpy)
     {
       if(pipe_ret.getName() == req.pipe_name)
       {
         pipes_ret.clear();
         pipes_ret.push_back(pipe_ret);
-        return true;
+        named_pipe_found = true;
+        break;
       }
     }
-    return false;
+
+    if (!named_pipe_found)
+    {
+      return false;
+    }
   }
 
   // Check if there are any required types for the output topics of the pipe

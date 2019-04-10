@@ -1,6 +1,9 @@
 # Remote Management Request
 temoto_core/RMPRequest rmp
 
+# Name of the component (not required)
+string component_name
+
 # Type of the requested component (required).
 string component_type
 

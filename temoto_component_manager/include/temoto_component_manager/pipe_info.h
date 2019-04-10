@@ -370,7 +370,7 @@ struct convert<temoto_component_manager::PipeInfo>
         Node parameters_node = (*segment_it)["required_parameters"];
         for (YAML::const_iterator parameters_it = parameters_node.begin(); parameters_it != parameters_node.end(); ++parameters_it)
         {
-          segment.addOutputTopicType(parameters_it->as<std::string>());
+          segment.addRequiredParameter(parameters_it->as<std::string>());
         }
       }
       catch (YAML::InvalidNode e)
