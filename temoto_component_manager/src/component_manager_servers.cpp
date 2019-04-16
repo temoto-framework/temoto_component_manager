@@ -380,6 +380,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
       load_component_msg.request.executable = ci.getExecutable();
       load_component_msg.request.input_topics = req.input_topics;
       load_component_msg.request.output_topics = req.output_topics;
+      load_component_msg.request.required_parameters = req.required_parameters;
 
       TEMOTO_INFO( "Component Manager is forwarding request: '%s', '%s', '%s', reliability %.3f"
                  , ci.getType().c_str()
