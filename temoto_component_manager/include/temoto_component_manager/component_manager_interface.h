@@ -113,14 +113,32 @@ public:
                             , const std::string& ros_program_name
                             , const ComponentTopicsReq& topics)
   {
-    validateInterface();
+    
+    try
+    {
+      validateInterface();
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      throw FORWARD_ERROR(error_stack);
+    }
 
+    return startComponent(component_type, "", "", topics, ComponentTopicsReq());
+  }
+
+  ComponentTopicsRes startComponent( const std::string& component_type
+                                   , const std::string& package_name
+                                   , const std::string& ros_program_name
+                                   , const ComponentTopicsReq& topics
+                                   , const ComponentTopicsReq& parameters)
+  {
     // Fill out the "StartComponentRequest" request
     temoto_component_manager::LoadComponent srv_msg;
     srv_msg.request.component_type = component_type;
     srv_msg.request.package_name = package_name;
     srv_msg.request.executable = ros_program_name;
     srv_msg.request.output_topics = topics.outputTopicsAsKeyValues();
+    srv_msg.request.required_parameters = parameters.outputTopicsAsKeyValues();
 
     // Call the server    
     try
