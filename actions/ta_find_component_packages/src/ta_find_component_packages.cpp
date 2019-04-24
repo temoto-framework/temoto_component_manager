@@ -204,7 +204,7 @@ std::vector<temoto_component_manager::ComponentInfo> getComponentInfo(const std:
   // Parse any component related information
   if (config["Components"])
   {
-    components = parseComponents(config);
+    components = parseComponents(config, desc_file_path);
     for (auto& s : components)
     {
       TEMOTO_DEBUG("Got component: '%s'.", s.getName().c_str());
@@ -224,32 +224,33 @@ std::vector<temoto_component_manager::ComponentInfo> getComponentInfo(const std:
  * @param config
  * @return
  */
-std::vector<temoto_component_manager::ComponentInfo> parseComponents(const YAML::Node& config) const
+std::vector<temoto_component_manager::ComponentInfo> parseComponents(const YAML::Node& config, std::string file_path) const
 {
   std::vector<temoto_component_manager::ComponentInfo> components;
 
   if (!config.IsMap())
   {
-    TEMOTO_WARN("Unable to parse 'Components' key from config.");
+    TEMOTO_WARN_STREAM("Unable to parse 'Components' key from config:"  << file_path);
     return components;
   }
 
   YAML::Node components_node = config["Components"];
   if (!components_node.IsSequence())
   {
-    TEMOTO_WARN("The given config does not contain sequence of components.");
+    TEMOTO_WARN_STREAM("The given config does not contain sequence of components: " << file_path);
     return components;
   }
 
   TEMOTO_DEBUG("Parsing %lu components.", components_node.size());
 
   // go over each component node in the sequence
+  unsigned int i = 0;
   for (YAML::const_iterator node_it = components_node.begin(); node_it != components_node.end(); ++node_it)
   {
     if (!node_it->IsMap())
     {
-      TEMOTO_WARN("Unable to parse the component. Parameters in YAML have to be specified in "
-                   "key-value pairs.");
+      TEMOTO_WARN_STREAM("Unable to parse the component. Parameters in YAML have to be specified in "
+                   "key-value pairs: " << file_path);
       continue;
     }
 
@@ -271,10 +272,11 @@ std::vector<temoto_component_manager::ComponentInfo> parseComponents(const YAML:
       {
         TEMOTO_WARN("Ignoring duplicate of component '%s'.", component.getName().c_str());
       }
+      i++;
     }
     catch (YAML::TypedBadConversion<temoto_component_manager::ComponentInfo> e)
     {
-      TEMOTO_WARN("Failed to parse temoto_component_manager::ComponentInfo from config.");
+      TEMOTO_WARN_STREAM("Failed to parse component nr '" << i << "' from config: " << file_path);
       continue;
     }
   }

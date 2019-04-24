@@ -103,6 +103,11 @@ private:
                     , ComponentInfo& component_info
                     , std::string direction);
 
+  void processParameters( std::vector<diagnostic_msgs::KeyValue>& req_parameters
+                        , std::vector<diagnostic_msgs::KeyValue>& res_parameters
+                        , temoto_er_manager::LoadExtResource& load_er_msg
+                        , ComponentInfo& component_info);
+
   /**
    * @brief Checks if given component is already in use
    * 

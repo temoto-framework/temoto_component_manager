@@ -325,7 +325,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
       processTopics(req.output_topics, res.output_topics, load_er_msg, ci, "out");
 
       // Remap the parameters if requested
-      processTopics(req.required_parameters, res.required_parameters, load_er_msg, ci, "parameters");
+      processParameters(req.required_parameters, res.required_parameters, load_er_msg, ci);
             
       TEMOTO_DEBUG( "Found a suitable local component: '%s', '%s', '%s', reliability %.3f"
                  , load_er_msg.request.action.c_str()
@@ -606,10 +606,6 @@ void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyVal
   {
     component_info_topics = component_info.getOutputTopics();
   }
-  else if (direction == "parameters")
-  {
-    component_info_topics = component_info.getRequiredParameters();
-  }
 
   // If no topics were requested, then return a list of all topics this component publishes
   if (req_topics.empty())
@@ -621,7 +617,7 @@ void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyVal
       topic_msg.value = common::getAbsolutePath(output_topic.second);
       res_topics.push_back(topic_msg);
     }
-    return;
+    return; 
   }
 
   // Remap the input topics if requested
@@ -666,6 +662,60 @@ void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyVal
 
     // Add the topic to the response message
     res_topics.push_back(res_topic);
+  }
+}
+
+/*
+ * ComponentManagerServers::processParameters
+ */
+void ComponentManagerServers::processParameters( std::vector<diagnostic_msgs::KeyValue>& req_parameters
+                                               , std::vector<diagnostic_msgs::KeyValue>& res_parameters
+                                               , temoto_er_manager::LoadExtResource& load_er_msg
+                                               , ComponentInfo& component_info)
+{
+  /*
+   * Find out it this is a launch file or not. Remapping is different
+   * for executable types (launch files or executables)
+   */
+  bool isLaunchFile;
+  std::regex rx(".*\\.launch$");
+  isLaunchFile = std::regex_match(component_info.getExecutable(), rx);
+  std::vector<StringPair> component_info_parameters = component_info.getRequiredParameters();
+
+  // If no parameters were requested, then return a list of all parameters this component accepts
+  if (req_parameters.empty())
+  {
+    for (const auto& parameter : component_info_parameters)
+    {
+      diagnostic_msgs::KeyValue parameter_msg;
+      parameter_msg.key = parameter.first;
+      parameter_msg.value = parameter.second;
+      res_parameters.push_back(parameter_msg);
+    }
+    return;
+  }
+
+  // Fill out the parameters
+  for (auto& req_parameter : req_parameters)
+  {
+    // And return the input parameters via response
+    diagnostic_msgs::KeyValue res_parameter;
+    res_parameter.key = req_parameter.key;
+    std::string default_parameter_value = component_info.getRequiredParameter(req_parameter.key);
+
+    if (req_parameter.value != "")
+    {
+      std::string remap_arg = req_parameter.key + ":=" + req_parameter.value;
+      load_er_msg.request.args += remap_arg + " ";
+      res_parameter.value = req_parameter.value;
+    }
+    else
+    {
+      res_parameter.value = default_parameter_value;
+    }
+
+    // Add the parameter to the response message
+    res_parameters.push_back(res_parameter);
   }
 }
 

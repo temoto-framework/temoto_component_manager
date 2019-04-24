@@ -59,7 +59,8 @@ public:
   std::string getOutputTopic(const std::string& type);
 
   // Get required parameter
-  //std::string getRequiredParameter(const std::string &type);
+  std::string getRequiredParameter(const std::string& type);
+  
 
   // Get component type
   std::string getType() const;

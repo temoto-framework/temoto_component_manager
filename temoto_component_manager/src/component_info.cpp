@@ -77,7 +77,7 @@ std::string ComponentInfo::getTopicByType(const std::string& type, const std::ve
   return std::string();
 }
 
-// Get output topic
+// Get input topic
 std::string ComponentInfo::getInputTopic(const std::string& type)
 {
   return getTopicByType(type, input_topics_.getInputTopics());
@@ -87,6 +87,12 @@ std::string ComponentInfo::getInputTopic(const std::string& type)
 std::string ComponentInfo::getOutputTopic(const std::string& type)
 {
   return getTopicByType(type, output_topics_.getOutputTopics());
+}
+
+// Get output topic
+std::string ComponentInfo::getRequiredParameter(const std::string& type)
+{
+  return getTopicByType(type, required_parameters_.getInputTopics());
 }
 
 // Get component type
