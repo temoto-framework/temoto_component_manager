@@ -517,9 +517,9 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
         {
           if (seg_param_spec.segment_index == i)
           {
-            load_component_msg.request.required_parameters.push_back(seg_param_spec.parameters[0]);
+            load_component_msg.request.required_parameters = seg_param_spec.parameters;
             load_component_msg.request.component_name = seg_param_spec.component_name;
-            //break;
+            break;
           }
         }
 
