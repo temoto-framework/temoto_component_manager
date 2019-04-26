@@ -212,7 +212,8 @@ public:
    * @param pipe_category
    * @return
    */
-  temoto_core::TopicContainer startPipe(std::string pipe_category)
+  temoto_core::TopicContainer startPipe( std::string pipe_category
+    , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>())
   {
     // Validate the interface
     try
@@ -227,6 +228,7 @@ public:
     // Start filling out the LoadPipe message
     LoadPipe load_pipe_msg;
     load_pipe_msg.request.pipe_category = pipe_category;
+    load_pipe_msg.request.pipe_segment_specifiers = segment_specifiers;
 
     try
     {
