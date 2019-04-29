@@ -138,6 +138,7 @@ public:
     srv_msg.request.package_name = package_name;
     srv_msg.request.executable = ros_program_name;
     srv_msg.request.output_topics = topics.outputTopicsAsKeyValues();
+    srv_msg.request.input_topics = topics.inputTopicsAsKeyValues();
     srv_msg.request.required_parameters = parameters.outputTopicsAsKeyValues();
 
     // Call the server    
