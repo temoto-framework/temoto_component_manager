@@ -87,7 +87,11 @@ static bool operator==(const temoto_component_manager::LoadComponent::Request& r
 static bool operator==(const temoto_component_manager::LoadPipe::Request& r1,
                        const temoto_component_manager::LoadPipe::Request& r2)
 {
-  return( r1.detection_method == r2.detection_method);
+  return( (r1.pipe_category == r2.pipe_category) &&
+          (r1.detection_method == r2.detection_method));
+  /*
+   * TODO: Add more comparison metrics
+   */ 
 }
 
 #endif
