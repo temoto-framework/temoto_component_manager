@@ -487,6 +487,7 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
       {
         // Declare a LoadComponent message
         temoto_component_manager::LoadComponent load_component_msg;
+        load_component_msg.request.use_only_local_components = req.use_only_local_segments;
         load_component_msg.request.component_type = segments.at(i).segment_type_;
 
         // Clear out the required output topics

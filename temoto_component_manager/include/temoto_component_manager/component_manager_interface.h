@@ -66,7 +66,7 @@ public:
    * @param component_type
    * @return
    */
-  ComponentTopicsRes startComponent(const std::string& component_type)
+  ComponentTopicsRes startComponent(const std::string& component_type, bool use_only_local_components = false)
   {
     try
     {
@@ -77,7 +77,7 @@ public:
       throw FORWARD_ERROR(error_stack);
     }
 
-    return startComponent(component_type, "", "", ComponentTopicsReq());
+    return startComponent(component_type, "", "", ComponentTopicsReq(), use_only_local_components);
   }
 
   /**
@@ -86,7 +86,9 @@ public:
    * @param topics
    * @return
    */
-  ComponentTopicsRes startComponent(const std::string& component_type, const ComponentTopicsReq& topics)
+  ComponentTopicsRes startComponent( const std::string& component_type
+                                   , const ComponentTopicsReq& topics
+                                   , bool use_only_local_components = false)
   {
     try
     {
@@ -97,7 +99,7 @@ public:
       throw FORWARD_ERROR(error_stack);
     }
 
-    return startComponent(component_type, "", "", topics);
+    return startComponent(component_type, "", "", topics, use_only_local_components);
   }
 
   /**
@@ -111,7 +113,8 @@ public:
   ComponentTopicsRes startComponent(const std::string& component_type
                             , const std::string& package_name
                             , const std::string& ros_program_name
-                            , const ComponentTopicsReq& topics)
+                            , const ComponentTopicsReq& topics
+                            , bool use_only_local_components = false)
   {
     
     try
@@ -123,20 +126,22 @@ public:
       throw FORWARD_ERROR(error_stack);
     }
 
-    return startComponent(component_type, "", "", topics, ComponentTopicsReq());
+    return startComponent(component_type, "", "", topics, ComponentTopicsReq(), use_only_local_components);
   }
 
   ComponentTopicsRes startComponent( const std::string& component_type
                                    , const std::string& package_name
                                    , const std::string& ros_program_name
                                    , const ComponentTopicsReq& topics
-                                   , const ComponentTopicsReq& parameters)
+                                   , const ComponentTopicsReq& parameters
+                                   , bool use_only_local_components = false)
   {
     // Fill out the "StartComponentRequest" request
     temoto_component_manager::LoadComponent srv_msg;
     srv_msg.request.component_type = component_type;
     srv_msg.request.package_name = package_name;
     srv_msg.request.executable = ros_program_name;
+    srv_msg.request.use_only_local_components = use_only_local_components;
     srv_msg.request.output_topics = topics.outputTopicsAsKeyValues();
     srv_msg.request.input_topics = topics.inputTopicsAsKeyValues();
     srv_msg.request.required_parameters = parameters.outputTopicsAsKeyValues();
@@ -214,7 +219,8 @@ public:
    * @return
    */
   temoto_core::TopicContainer startPipe( std::string pipe_category
-    , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>())
+    , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
+    , bool use_only_local_segments = false)
   {
     // Validate the interface
     try
@@ -230,6 +236,7 @@ public:
     LoadPipe load_pipe_msg;
     load_pipe_msg.request.pipe_category = pipe_category;
     load_pipe_msg.request.pipe_segment_specifiers = segment_specifiers;
+    load_pipe_msg.request.use_only_local_segments = use_only_local_segments;
 
     try
     {
