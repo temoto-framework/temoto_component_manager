@@ -5,6 +5,8 @@ string pipe_category
 
 string pipe_name
 
+bool use_only_local_segments
+
 # Supported types for object detection are: 
 uint8 ARTAG = 1     # Requires the "tag_id" field to be filled
 #uint8 SEGMENT = 2   # Requires the "primitive" field to be filled
