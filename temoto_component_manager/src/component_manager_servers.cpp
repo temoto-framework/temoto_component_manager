@@ -189,7 +189,8 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
   bool prefer_remote = false;
   if (got_local_components
       && got_remote_components
-      && (req.rmp.temoto_namespace == common::getTemotoNamespace()))
+      && (req.rmp.temoto_namespace == common::getTemotoNamespace())
+      && req.use_only_local_components == false)
   {
     /*
      * TODO: This section should be expanded with more coosing metrics.
@@ -375,6 +376,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
     {
       // remote component candidate was found, forward the request to the remote component manager
       LoadComponent load_component_msg;
+      load_component_msg.request.use_only_local_components = true;
       load_component_msg.request.component_type = ci.getType();
       load_component_msg.request.package_name = ci.getPackageName();
       load_component_msg.request.executable = ci.getExecutable();
