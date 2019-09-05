@@ -39,15 +39,15 @@
   <build_depend>roscpp</build_depend>>
   <build_depend>rospy</build_depend>
   <build_depend>class_loader</build_depend>
+  <build_depend>temoto_action_engine</build_depend>
   <build_depend>temoto_core</build_depend>
-  <build_depend>temoto_nlp</build_depend>
   <build_depend>temoto_component_manager</build_depend>
 
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>class_loader</exec_depend>
+  <exec_depend>temoto_action_engine</exec_depend>
   <exec_depend>temoto_core</exec_depend>
-  <exec_depend>temoto_nlp</exec_depend>
   <exec_depend>temoto_component_manager</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->

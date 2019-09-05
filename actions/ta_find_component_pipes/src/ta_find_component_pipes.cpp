@@ -13,13 +13,14 @@
  *  modified or which do not make sence at the first glance.
  *
  *  See TeMoto documentation & tutorials at: 
- *    https://utnuclearroboticspublic.github.io/temoto2
+ *    https://temoto-telerobotics.github.io
  *
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 /* REQUIRED BY TEMOTO */
-#include "temoto_nlp/base_task/base_task.h"    // The base task
-#include <class_loader/class_loader.h>  // Class loader includes
+#include <class_loader/class_loader.h>
+#include "ta_find_component_pipes/temoto_action.h"
+#include "ta_find_component_pipes/macros.h"
 
 #include "temoto_component_manager/pipe_info.h"
 #include "temoto_component_manager/component_info_registry.h"
@@ -31,71 +32,31 @@
 /* 
  * ACTION IMPLEMENTATION of TaFindComponentPipes 
  */
-class TaFindComponentPipes : public temoto_nlp::BaseTask
+class TaFindComponentPipes : public TemotoAction
 {
 public:
 
-/* REQUIRED BY TEMOTO */
+// Constructor. REQUIRED BY TEMOTO
 TaFindComponentPipes()
 {
   // ---> YOUR CONSTRUCTION ROUTINES HERE <--- //
-  TEMOTO_INFO("TaFindComponentPipes constructed");
-}
-    
-/* REQUIRED BY TEMOTO */
-void startTask(temoto_nlp::TaskInterface task_interface)
-{
-  input_subjects = task_interface.input_subjects_;
-  switch (task_interface.id_)
-  {
-        
-    // Interface 0
-    case 0:
-      startInterface_0();
-      break;
-
-  }
+  TEMOTO_INFO("Constructed");
 }
 
-/* REQUIRED BY TEMOTO */
-std::vector<temoto_nlp::Subject> getSolution()
+// REQUIRED BY TEMOTO
+void executeTemotoAction()
 {
-  return output_subjects;
-}
-
-~TaFindComponentPipes()
-{
-  TEMOTO_INFO("TaFindComponentPipes destructed");
-}
-
-/********************* END OF REQUIRED PUBLIC INTERFACE *********************/
-
-
-private:
- 
-/*
- * Interface 0 body
- */
-void startInterface_0()
-{
-  /* EXTRACTION OF INPUT SUBJECTS */
-  temoto_nlp::Subject what_0_in = temoto_nlp::getSubjectByType("what", input_subjects);
-  std::string  what_0_word_in = what_0_in.words_[0];
-  std::string  what_0_data_0_in = boost::any_cast<std::string>(what_0_in.data_[0].value);
-  temoto_component_manager::ComponentInfoRegistry* what_0_data_1_in = 
-    boost::any_cast<temoto_component_manager::ComponentInfoRegistry*>(what_0_in.data_[1].value);
-
-  // Get the catkin workspace src directory path
-  std::string catkin_ws_src_dir = what_0_data_0_in;
-  temoto_component_manager::ComponentInfoRegistry* cir = what_0_data_1_in;
+  // Input parameters
+  std::string catkin_ws_path = GET_PARAMETER("catkin_ws_path", std::string);
+  temoto_component_manager::ComponentInfoRegistry* cir = GET_PARAMETER("cir", temoto_component_manager::ComponentInfoRegistry*);
 
   // Look for new packages every 10 seconds
-  while(stop_task_ == false)
+  while(actionOk())
   {
-    TEMOTO_DEBUG_STREAM("Snooping the catkin workspace at: " << catkin_ws_src_dir);
+    TEMOTO_DEBUG_STREAM("Snooping the catkin workspace at: " << catkin_ws_path);
 
     // Find all component descriptor file paths
-    boost::filesystem::path base_path (catkin_ws_src_dir);
+    boost::filesystem::path base_path (catkin_ws_path);
     std::vector<std::string> pipe_desc_file_paths = findPipeDescFiles(base_path);
 
     // Read in the pipe infos
@@ -130,7 +91,7 @@ void startInterface_0()
     }
 
     // Sleep for 10 seconds
-    ros::Duration(10).sleep();
+    sleepAndCheckOk(10);
   }
 }
 
@@ -288,6 +249,22 @@ bool checkIgnoreDirs( std::string dir)
   return true;
 }
 
+/**
+ * @brief Sleeps for set time while checking if the action should be stopped or not
+ * 
+ * @param time 
+ */
+void sleepAndCheckOk(float time)
+{
+  float timestep = 1;
+  float current_duration = 0;
+  while(actionOk() && (current_duration < time))
+  {
+    ros::Duration(timestep).sleep();
+    current_duration += timestep;
+  }
+}
+
 /// Directories that will be ignored
 std::vector<std::string> ignore_dirs_{ "src"
                                      , "include"
@@ -304,7 +281,14 @@ std::vector<std::string> ignore_dirs_{ "src"
 /// Name of the component description file
 std::string description_file_= "pipes.yaml";
 
+// Destructor
+~TaFindComponentPipes()
+{
+  // ---> YOUR CONSTRUCTION ROUTINES HERE <--- //
+  TEMOTO_PRINT_OF("Destructor", getUmrfPtr()->getName());
+}
+
 }; // TaFindComponentPipes class
 
 /* REQUIRED BY CLASS LOADER */
-CLASS_LOADER_REGISTER_CLASS(TaFindComponentPipes, temoto_nlp::BaseTask);
+CLASS_LOADER_REGISTER_CLASS(TaFindComponentPipes, ActionBase);

@@ -10,15 +10,12 @@ find_package(catkin REQUIRED COMPONENTS
   class_loader
   roscpp
   rospy
-  std_msgs
+  temoto_action_engine
   temoto_core
-  temoto_nlp
   temoto_component_manager
 )
 
-catkin_package(
-  LIBRARIES yaml-cpp
-)
+catkin_package()
 
 ###########
 ## Build ##
@@ -40,7 +37,7 @@ set_target_properties(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME}
   ${class_loader_LIBRARIES}
-  temoto_core_components
+  ${catkin_LIBRARIES}
 )
 
 class_loader_hide_library_symbols(${PROJECT_NAME})

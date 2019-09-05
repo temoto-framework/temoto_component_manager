@@ -4,7 +4,7 @@ add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function -Wno-pedantic)
 
 find_package(catkin REQUIRED COMPONENTS
   temoto_core
-  temoto_nlp
+  temoto_action_engine
   temoto_er_manager
   roscpp
   roslib
@@ -32,14 +32,13 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   diagnostic_msgs
-  temoto_nlp
   temoto_core
 )
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES yaml-cpp
-  CATKIN_DEPENDS roscpp std_msgs diagnostic_msgs temoto_core temoto_nlp temoto_er_manager
+  CATKIN_DEPENDS roscpp std_msgs diagnostic_msgs temoto_core temoto_action_engine temoto_er_manager
   DEPENDS 
     TinyXML
 )
@@ -64,7 +63,5 @@ add_dependencies(temoto_component_manager
 target_link_libraries(temoto_component_manager
   ${catkin_LIBRARIES} 
   yaml-cpp 
-  temoto_nlp_components
-  temoto_core_components
 )
 

@@ -23,9 +23,22 @@ public:
   : BaseSubsystem("component_manager", error::Subsystem::COMPONENT_MANAGER, __func__)
   , cs_(this, &cir_)
   , cms_(this, &cir_)
+  {}
+
+  bool initialize()
   {
-    cs_.startSnooping();
-    TEMOTO_INFO("Component Manager is good to go.");
+    try
+    {
+      cs_.startSnooping();
+      TEMOTO_INFO("Component Manager is good to go.");
+      return true;
+    }
+    catch(temoto_core::error::ErrorStack e)
+    {
+      TEMOTO_ERROR_STREAM("Could not start the Component Manager: ");
+      std::cout << e << std::endl;
+      return false;
+    }
   }
 
   ~ComponentManager()
@@ -54,7 +67,11 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "component_manager");
 
   // Create a ComponentManager object
-  ComponentManager sm;
+  ComponentManager cm;
+  if (!cm.initialize())
+  {
+    return 1;
+  }
 
   //use single threaded spinner for global callback queue
   ros::spin();

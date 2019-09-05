@@ -17,9 +17,29 @@ ComponentSnooper::ComponentSnooper( temoto_core::BaseSubsystem*b
                             , ComponentInfoRegistry* cir)
 : temoto_core::BaseSubsystem(*b, __func__)
 , config_syncer_(srv_name::MANAGER, srv_name::SYNC_TOPIC, &ComponentSnooper::syncCb, this)
-, action_engine_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
+, action_engine_()
 , cir_(cir)
 {
+  // Set up the action engine
+  std::string action_uri_file_path = ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml";
+
+  /*
+   * Open the action sources yaml file and get the paths to action libs
+   * TODO: check for typos and other existance problems
+   */
+  YAML::Node config = YAML::LoadFile(action_uri_file_path);
+  TEMOTO_INFO_STREAM("Indexing TeMoto actions");
+  for (YAML::const_iterator it = config.begin(); it != config.end(); ++it)
+  {
+    std::string package_name = (*it)["package_name"].as<std::string>();
+    std::string relative_path = (*it)["relative_path"].as<std::string>();
+    std::string full_path = ros::package::getPath(package_name) + "/" + relative_path;
+    action_engine_.addActionsPath(full_path);
+  }
+
+  // Start the Action Engine
+  action_engine_.start();
+
   // Component Info update monitoring timer
   update_monitoring_timer_ = nh_.createTimer(ros::Duration(1), &ComponentSnooper::updateMonitoringTimerCb, this);
 
@@ -36,64 +56,55 @@ void ComponentSnooper::startSnooping()
    * running in the background until its ordered to be stopped.
    */
 
-  // Invoke the component finder action
+  try
   {
-    std::string action = "find";
-    temoto_nlp::Subjects subjects;
+    // Invoke the component finder action
+    {
+      Umrf find_components_umrf;
+      find_components_umrf.setName("TaFindComponentPackages");
+      find_components_umrf.setSuffix("0");
+      find_components_umrf.setEffect("synchronous");
+      ActionParameters ap;
 
-    // Subject that will contain the name of the tracked object.
-    // Necessary when the tracker has to be stopped
-    temoto_nlp::Subject sub_0("what", "component packages");
+      ActionParameters::ParameterContainer p0("catkin_ws_path", "string");
+      p0.setData(boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../.."));
+      ap.setParameter(p0);
 
-    // Topic from where the raw AR tag tracker data comes from
-    std::string catkin_ws = ros::package::getPath(ROS_PACKAGE_NAME) + "/../../..";
-    sub_0.addData("string", catkin_ws);
+      ActionParameters::ParameterContainer p1("cir", "cir_pointer");
+      p1.setData(boost::any_cast<ComponentInfoRegistry*>(cir_));
+      ap.setParameter(p1);
 
-    // Pass a pointer of CIR to the action. This will be used for updating CIR.
-    sub_0.addData("pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
+      find_components_umrf.setInputParameters(ap);
+      action_engine_.executeUmrfGraph("component_snooper_graph_1", std::vector<Umrf>{find_components_umrf}, true);
+    }
 
-    subjects.push_back(sub_0);
+    // Invoke the pipe finding action
+    {
+      Umrf find_pipes_umrf;
+      find_pipes_umrf.setName("TaFindComponentPipes");
+      find_pipes_umrf.setSuffix("0");
+      find_pipes_umrf.setEffect("synchronous");
+      ActionParameters ap;
 
-    // Create a SF
-    std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
-    task_descriptors.emplace_back(action, subjects);
-    task_descriptors[0].setActionStemmed(action);
+      ActionParameters::ParameterContainer p0("catkin_ws_path", "string");
+      p0.setData(boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../.."));
+      ap.setParameter(p0);
 
-    // Create a sematic frame tree
-    temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
+      ActionParameters::ParameterContainer p1("cir", "cir_pointer");
+      p1.setData(boost::any_cast<ComponentInfoRegistry*>(cir_));
+      ap.setParameter(p1);
 
-    // Execute the SFT
-    action_engine_.executeSFTThreaded(std::move(sft));
+      find_pipes_umrf.setInputParameters(ap);
+      action_engine_.executeUmrfGraph("component_snooper_graph_2", std::vector<Umrf>{find_pipes_umrf}, true);
+    }
   }
-
-  // Invoke the pipe finding action
+  catch(const std::exception& e)
   {
-    std::string action = "find";
-    temoto_nlp::Subjects subjects;
-
-    // Subject that will contain the name of the tracked object.
-    // Necessary when the tracker has to be stopped
-    temoto_nlp::Subject sub_0("what", "pipes");
-
-    // Topic from where the raw AR tag tracker data comes from
-    std::string catkin_ws = ros::package::getPath(ROS_PACKAGE_NAME) + "/../../..";
-    sub_0.addData("string", catkin_ws);
-
-    // Pass a pointer of CIR to the action. This will be used for updating CIR.
-    sub_0.addData("pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
-
-    subjects.push_back(sub_0);
-
-    // Create a SF
-    std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
-    task_descriptors.emplace_back(action, subjects);
-    task_descriptors[0].setActionStemmed(action);
-
-    // Create a sematic frame tree
-    temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
-
-    // Execute the SFT
-    action_engine_.executeSFTThreaded(std::move(sft));
+    throw CREATE_ERROR(temoto_core::error::Code::ACTION_UNKNOWN, e.what());
+  }
+  catch(...)
+  {
+    throw CREATE_ERROR(temoto_core::error::Code::ACTION_UNKNOWN, "Unhandled exception");
   }
 }
 

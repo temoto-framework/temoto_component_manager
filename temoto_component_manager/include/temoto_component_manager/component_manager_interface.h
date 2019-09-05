@@ -1,3 +1,21 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright 2019 TeMoto Telerobotics
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* Author: Robert Valner */
+
 #ifndef TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_INTERFACE_H
 #define TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_INTERFACE_H
 
@@ -5,7 +23,6 @@
 #include "temoto_core/common/topic_container.h"
 #include "temoto_core/rmp/resource_manager.h"
 
-#include "temoto_nlp/base_task/base_task.h"
 #include "temoto_component_manager/component_manager_services.h"
 #include <memory> //unique_ptr
 
@@ -34,7 +51,7 @@ class ComponentTopicsRes : public temoto_core::TopicContainer
 namespace temoto_component_manager
 {
 
-template <class OwnerTask>
+template <class OwnerAction>
 class ComponentManagerInterface : public temoto_core::BaseSubsystem
 {
 public:
@@ -50,7 +67,7 @@ public:
    * @brief initialize
    * @param task
    */
-  void initialize(OwnerTask* task)
+  void initialize(OwnerAction* task)
   {
     owner_instance_ = task;
     initializeBase(task);
@@ -361,7 +378,7 @@ public:
   /**
    * @brief registerUpdateCallback
    */
-  void registerUpdateCallback( void (OwnerTask::*callback )(bool))
+  void registerUpdateCallback( void (OwnerAction::*callback )(bool))
   {
     update_callback_ = callback;
   }
@@ -380,8 +397,8 @@ private:
   std::vector<temoto_component_manager::LoadComponent> allocated_components_;
   std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>> resource_manager_;
 
-  void(OwnerTask::*update_callback_)(bool) = NULL;
-  OwnerTask* owner_instance_;
+  void(OwnerAction::*update_callback_)(bool) = NULL;
+  OwnerAction* owner_instance_;
 
   std::vector<LoadPipe> allocated_pipes_;
 
