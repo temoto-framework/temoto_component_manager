@@ -65,14 +65,14 @@ public:
 
   /**
    * @brief initialize
-   * @param task
+   * @param action
    */
-  void initialize(OwnerAction* task)
+  void initialize(OwnerAction* action)
   {
-    owner_instance_ = task;
-    initializeBase(task);
-    log_group_ = "interfaces." + task->getPackageName();
-    name_ = task->getName() + "/component_manager_interface";
+    owner_instance_ = action;
+    initializeBase(action);
+    log_group_ = "interfaces." + action->getName();
+    name_ = action->getName() + "/component_manager_interface";
 
     resource_manager_ = std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>>(new temoto_core::rmp::ResourceManager<ComponentManagerInterface>(name_, this));
     resource_manager_->registerStatusCb(&ComponentManagerInterface::statusInfoCb);
@@ -81,7 +81,7 @@ public:
   /**
    * @brief startComponent
    * @param component_type
-   * @return
+   * @returnstart
    */
   ComponentTopicsRes startComponent(const std::string& component_type, bool use_only_local_components = false)
   {

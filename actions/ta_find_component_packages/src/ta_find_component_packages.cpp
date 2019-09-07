@@ -70,9 +70,10 @@ void executeTemotoAction()
                               , component_infos_current.begin()
                               , component_infos_current.end());
       }
-      catch(...)
+      catch (std::exception& e)
       {
-        // TODO: implement a proper catch block
+        // Rethrow the exception
+        TEMOTO_ERROR_STREAM(e.what() << " in " << desc_file_path);
       }
     }
 

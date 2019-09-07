@@ -45,6 +45,9 @@ ComponentSnooper::ComponentSnooper( temoto_core::BaseSubsystem*b
 
   // Get remote component_infos
   config_syncer_.requestRemoteConfigs();
+
+  // Advertise local components
+  advertiseLocalComponents();
 }
 
 void ComponentSnooper::startSnooping()
@@ -212,12 +215,8 @@ void ComponentSnooper::syncCb(const temoto_core::ConfigSync& msg, const PayloadT
     for (auto& s : components)
     {
       s->setTemotoNamespace(msg.temoto_namespace);
+      TEMOTO_WARN("---------REMOTE COMPONENT: \n %s", s->toString().c_str());
     }
-
-    //for (auto& s : remote_components_)
-    //{
-    //  TEMOTO_DEBUG("---------REMOTE COMPONENT: \n %s", s->toString().c_str());
-    //}
 
     for (auto& component : components)
     {
