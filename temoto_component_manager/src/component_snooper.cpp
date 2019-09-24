@@ -1,3 +1,21 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright 2019 TeMoto Telerobotics
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* Author: Robert Valner */
+
 #include "temoto_component_manager/component_snooper.h"
 #include "temoto_component_manager/component_manager_services.h"
 #include "temoto_component_manager/component_manager_yaml.h"
@@ -67,15 +85,10 @@ void ComponentSnooper::startSnooping()
       find_components_umrf.setName("TaFindComponentPackages");
       find_components_umrf.setSuffix("0");
       find_components_umrf.setEffect("synchronous");
+
       ActionParameters ap;
-
-      ActionParameters::ParameterContainer p0("catkin_ws_path", "string");
-      p0.setData(boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../.."));
-      ap.setParameter(p0);
-
-      ActionParameters::ParameterContainer p1("cir", "cir_pointer");
-      p1.setData(boost::any_cast<ComponentInfoRegistry*>(cir_));
-      ap.setParameter(p1);
+      ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../.."));
+      ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
       find_components_umrf.setInputParameters(ap);
       action_engine_.executeUmrfGraph("component_snooper_graph_1", std::vector<Umrf>{find_components_umrf}, true);
@@ -87,15 +100,10 @@ void ComponentSnooper::startSnooping()
       find_pipes_umrf.setName("TaFindComponentPipes");
       find_pipes_umrf.setSuffix("0");
       find_pipes_umrf.setEffect("synchronous");
+
       ActionParameters ap;
-
-      ActionParameters::ParameterContainer p0("catkin_ws_path", "string");
-      p0.setData(boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../.."));
-      ap.setParameter(p0);
-
-      ActionParameters::ParameterContainer p1("cir", "cir_pointer");
-      p1.setData(boost::any_cast<ComponentInfoRegistry*>(cir_));
-      ap.setParameter(p1);
+      ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../.."));
+      ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
       find_pipes_umrf.setInputParameters(ap);
       action_engine_.executeUmrfGraph("component_snooper_graph_2", std::vector<Umrf>{find_pipes_umrf}, true);
