@@ -274,10 +274,16 @@ public:
   }
 
   /**
-   * @brief statusInfoCb
-   * @param srv
+   * @brief 
+   * 
+   * @param pipe_category 
+   * @param segment_specifiers 
+   * @param use_only_local_segments 
+   * @return temoto_core::TopicContainer 
    */
-  void statusInfoCb(temoto_core::ResourceStatus& srv)
+  temoto_core::TopicContainer stopPipe( std::string pipe_category
+    , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
+    , bool use_only_local_segments = false)
   {
     try
     {
@@ -288,99 +294,168 @@ public:
       throw FORWARD_ERROR(error_stack);
     }
 
-    TEMOTO_INFO_STREAM("status info was received");
-    TEMOTO_INFO_STREAM(srv.request);
+    // Find all instances where request part matches of what was given and unload each resource
+    LoadPipe load_pipe_msg;
+    load_pipe_msg.request.pipe_category = pipe_category;
+    load_pipe_msg.request.pipe_segment_specifiers = segment_specifiers;
+    load_pipe_msg.request.use_only_local_segments = use_only_local_segments;
 
-    /*
-     * Check if the owner action has a status routine defined
-     */
-    if (update_callback_)
+    // The == operator used in the lambda function is defined in
+    // component manager services header
+    auto found_pipe_it = std::find_if(
+        allocated_pipes_.begin(),
+        allocated_pipes_.end(),
+        [&](const LoadPipe& srv_msg) -> bool{ return srv_msg.request == load_pipe_msg.request; });
+
+    if (found_pipe_it == allocated_pipes_.end())
     {
-      (owner_instance_->*update_callback_)(false);
-      return;
+      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL, "Unable to unload resource that is not "
+                                                            "loaded.");
     }
 
-    /*
-     * if any resource should fail, just unload it and load it again
-     * there is a chance that component manager gives us better component this time
-     */
-    if (srv.request.status_code == temoto_core::rmp::status_codes::FAILED)
+    try
     {
-      TEMOTO_WARN("Component manager interface detected a component failure. Unloading and "
-                                "trying again");
-      auto comp_it = std::find_if(allocated_components_.begin(), allocated_components_.end(),
-                                  [&](const temoto_component_manager::LoadComponent& comp) -> bool {
-                                    return comp.response.rmp.resource_id == srv.request.resource_id;
-                                  });
-
-      auto pipe_it = std::find_if(allocated_pipes_.begin(), allocated_pipes_.end(),
-                                  [&](const LoadPipe& sens) -> bool {
-                                    return sens.response.rmp.resource_id == srv.request.resource_id;
-                                  });
-
-      if (comp_it != allocated_components_.end())
-      {
-        TEMOTO_DEBUG("Unloading");
-        resource_manager_->unloadClientResource(comp_it->response.rmp.resource_id);
-        TEMOTO_DEBUG("Asking the same component again");
-
-        // this call automatically updates the response in allocated components vec
-        try
-        {
-          comp_it->request.output_topics = comp_it->response.output_topics;
-          resource_manager_->template call<LoadComponent>(srv_name::MANAGER,
-                                                          srv_name::SERVER,
-                                                          *comp_it);
-        }
-        catch(temoto_core::error::ErrorStack& error_stack)
-        {
-          SEND_ERROR(error_stack);
-        }
-      }
-
-      // If the pipe was found then ...
-      else if (pipe_it != allocated_pipes_.end())
-      {
-        try
-        {
-          // ... unload it and ...
-          TEMOTO_DEBUG("Unloading the pipe");
-          resource_manager_->unloadClientResource(pipe_it->response.rmp.resource_id);
-
-          // ... copy the output topics from the response into the output topics
-          // of the request (since the user still wants to receive the data on the same topics) ...
-          pipe_it->request.output_topics = pipe_it->response.output_topics;
-          pipe_it->request.pipe_id = pipe_it->response.pipe_id;
-
-          // ... and load an alternative pipe. This call automatically
-          // updates the response in allocated pipes vector
-
-          TEMOTO_DEBUG_STREAM("Trying to load an alternative pipe");
-
-          resource_manager_->template call<LoadPipe>(srv_name::MANAGER_2,
-                                                     srv_name::PIPE_SERVER,
-                                                     *pipe_it);
-        }
-        catch(temoto_core::error::ErrorStack& error_stack)
-        {
-          throw FORWARD_ERROR(error_stack);
-        }
-      }
-
-      else
-      {
-        throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
-                           "resource that does not exist.");
-      }
+      // Do the unloading
+      resource_manager_->unloadClientResource(found_pipe_it->response.rmp.resource_id);
+      allocated_pipes_.erase(found_pipe_it);
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      throw FORWARD_ERROR(error_stack);
     }
   }
 
   /**
-   * @brief registerUpdateCallback
+   * @brief statusInfoCb
+   * @param srv
    */
-  void registerUpdateCallback( void (OwnerAction::*callback )(bool))
+  void statusInfoCb(temoto_core::ResourceStatus& srv)
   {
-    update_callback_ = callback;
+    try
+    {
+      validateInterface();
+
+      TEMOTO_INFO_STREAM("status info was received");
+      TEMOTO_INFO_STREAM(srv.request);
+
+      /*
+      * If the status message indicates a resource failure, then find out what was
+      * the exact resource and execute a recovery behaviour
+      */
+      if (srv.request.status_code == temoto_core::rmp::status_codes::FAILED)
+      {
+        TEMOTO_WARN("The status info reported a resource failure.");
+
+        /*
+        * Check if the resource that failed was a component
+        */
+        auto component_it = std::find_if(
+          allocated_components_.begin(),
+          allocated_components_.end(),
+          [&](const temoto_component_manager::LoadComponent& comp) -> bool {
+            return comp.response.rmp.resource_id == srv.request.resource_id;
+          });
+
+        if (component_it != allocated_components_.end())
+        {
+          TEMOTO_DEBUG("Sending a request to unload the failed component ...");
+          resource_manager_->unloadClientResource(component_it->response.rmp.resource_id);
+          
+          /*
+           * Check if the owner action has a status routine defined
+           */
+          if (component_status_callback_)
+          {
+            TEMOTO_WARN_STREAM("Executing a custom recovery behaviour defined in Action '" 
+              << owner_instance_->getName() << "'.");
+            (owner_instance_->*component_status_callback_)(*component_it);
+            return;
+          }
+          else
+          {
+            // Execute the default behavior for component failure, which is to load a new component
+            TEMOTO_DEBUG("Asking the same component again");
+
+            // this call automatically updates the response in allocated components vec
+            component_it->request.output_topics = component_it->response.output_topics;
+            resource_manager_->template call<LoadComponent>(srv_name::MANAGER,
+                                                            srv_name::SERVER,
+                                                            *component_it);
+          }
+          return;
+        }
+        
+        /*
+        * Check if the resource that failed was a pipe
+        */
+        auto pipe_it = std::find_if(
+          allocated_pipes_.begin(), 
+          allocated_pipes_.end(),
+          [&](const LoadPipe& pipe) -> bool {
+            return pipe.response.rmp.resource_id == srv.request.resource_id;
+          });
+
+        if (pipe_it != allocated_pipes_.end())
+        {
+          TEMOTO_DEBUG("Sending a request to unload the failed pipe ...");
+          resource_manager_->unloadClientResource(component_it->response.rmp.resource_id);
+
+          /*
+           * Check if the owner action has a status routine defined
+           */
+          if (pipe_status_callback_)
+          {
+            TEMOTO_WARN_STREAM("Executing a custom recovery behaviour defined in Action '" 
+              << owner_instance_->getName() << "'.");
+            (owner_instance_->*pipe_status_callback_)(*pipe_it);
+            return;
+          }
+          else
+          {
+            // ... copy the output topics from the response into the output topics
+            // of the request (since the user still wants to receive the data on the same topics) ...
+            pipe_it->request.output_topics = pipe_it->response.output_topics;
+            pipe_it->request.pipe_id = pipe_it->response.pipe_id;
+
+            // ... and load an alternative pipe. This call automatically
+            // updates the response in allocated pipes vector
+            TEMOTO_DEBUG_STREAM("Trying to load an alternative pipe");
+            resource_manager_->template call<LoadPipe>(srv_name::MANAGER_2,
+                                                      srv_name::PIPE_SERVER,
+                                                      *pipe_it);
+          }
+          return;
+        }
+
+        TEMOTO_ERROR_STREAM("Resource status arrived for a resource that does not exist.");
+        // throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
+        //                    "resource that does not exist.");
+      }
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      throw FORWARD_ERROR(error_stack);
+    }
+  }
+
+  /**
+   * @brief 
+   * 
+   * @param callback 
+   */
+  void registerComponentStatusCallback( void (OwnerAction::*callback )(const LoadComponent&))
+  {
+    component_status_callback_ = callback;
+  }
+
+  /**
+   * @brief 
+   * 
+   * @param callback 
+   */
+  void registerPipeStatusCallback( void (OwnerAction::*callback )(const LoadPipe&))
+  {
+    pipe_status_callback_ = callback;
   }
 
   ~ComponentManagerInterface()
@@ -394,13 +469,14 @@ public:
 
 private:
   std::string name_;
-  std::vector<temoto_component_manager::LoadComponent> allocated_components_;
-  std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>> resource_manager_;
-
-  void(OwnerAction::*update_callback_)(bool) = NULL;
-  OwnerAction* owner_instance_;
-
+  std::vector<LoadComponent> allocated_components_;
   std::vector<LoadPipe> allocated_pipes_;
+
+  void(OwnerAction::*component_status_callback_)(const LoadComponent&) = NULL;
+  void(OwnerAction::*pipe_status_callback_)(const LoadPipe&) = NULL;
+
+  std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>> resource_manager_;
+  OwnerAction* owner_instance_;
 
   /**
    * @brief validateInterface

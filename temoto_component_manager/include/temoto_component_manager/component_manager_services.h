@@ -105,11 +105,92 @@ static bool operator==(const temoto_component_manager::LoadComponent::Request& r
 static bool operator==(const temoto_component_manager::LoadPipe::Request& r1,
                        const temoto_component_manager::LoadPipe::Request& r2)
 {
-  return( (r1.pipe_category == r2.pipe_category) &&
-          (r1.detection_method == r2.detection_method));
+  if ( (r1.pipe_category != r2.pipe_category) ||
+       (r1.detection_method != r2.detection_method))
+  {
+    return false;
+  }
+  
   /*
-   * TODO: Add more comparison metrics
-   */ 
+   * Check if the required output topics match
+   */
+  for (const auto& output_topic_r1 : r1.output_topics)
+  {
+    auto found = std::find_if(
+      r2.output_topics.begin(),
+      r2.output_topics.end(),
+      [&] (const diagnostic_msgs::KeyValue& t2)
+    { 
+      return ((output_topic_r1.key == t2.key) && (output_topic_r1.value == t2.value));
+    });
+
+    if (found == r2.output_topics.end())
+    {
+      return false;
+    }
+  }
+
+  /*
+   * Check if the segment specifiers match
+   */
+  for (const auto& segment_specifier_r1 : r1.pipe_segment_specifiers)
+  {
+    bool segment_specifier_found = false;
+    for (const auto& segment_specifier_r2 : r2.pipe_segment_specifiers)
+    {
+      // compare the segment index
+      if (segment_specifier_r1.segment_index != segment_specifier_r2.segment_index)
+      {
+        continue;
+      }
+
+      // compare component name
+      if (segment_specifier_r1.component_name != segment_specifier_r2.component_name)
+      {
+        continue;
+      }
+
+      // check if the number of parameters is the same
+      if (segment_specifier_r1.parameters.size() != segment_specifier_r2.parameters.size())
+      {
+        continue;
+      }
+
+      // check the parameters individually
+      auto found = std::find_if(
+        segment_specifier_r1.parameters.begin(),
+        segment_specifier_r1.parameters.end(),
+      [&] (const diagnostic_msgs::KeyValue& parameter_r1)
+      { 
+        for (const auto& parameter_r2 : segment_specifier_r2.parameters)
+        {
+          if ((parameter_r1.key == parameter_r2.key) && (parameter_r1.value == parameter_r2.value))
+          {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (found == segment_specifier_r1.parameters.end())
+      {
+        continue;
+      }
+
+      segment_specifier_found = true;
+      break;
+    }
+
+    if (!segment_specifier_found)
+    {
+      return false;
+    }
+  }
+
+  /*
+   * return
+   */     
+  return true;
 }
 
 #endif

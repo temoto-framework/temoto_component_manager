@@ -363,7 +363,9 @@ bool ComponentInfoRegistry::findPipes( const LoadPipe::Request& req
   // Get the pipes
   pipes_ret = pipes_cat->second;
 
-  // Check if a specific pipe (pipe_name is specified) is requested
+  /*
+   * Check if a specific pipe (pipe_name is specified) is requested
+   */
   if (!req.pipe_name.empty())
   {
     // PipeInfos pipes
@@ -386,7 +388,29 @@ bool ComponentInfoRegistry::findPipes( const LoadPipe::Request& req
     }
   }
 
-  // Check if there are any required types for the output topics of the pipe
+  /*
+   * TODO: Check the segment specifiers
+   */
+  // if (!req.pipe_segment_specifiers.empty())
+  // {
+  //   // Loop over pipes
+  //   for (auto pipe_it = pipes_ret.begin(); pipe_it != pipes_ret.end(); /* empty */)
+  //   {
+  //     // Remove the pipe if its last filter does not contain the required topic type
+  //     if ( false)
+  //     {
+  //       pipes_ret.erase(pipe_it);
+  //     }
+  //     else
+  //     {
+  //       pipe_it++;
+  //     }
+  //   }
+  // }
+
+  /*
+   * Check if there are any required types for the output topics of the pipe
+   */ 
   if (!req.output_topics.empty())
   {
     // Loop over pipes
@@ -441,7 +465,9 @@ bool ComponentInfoRegistry::findPipes( const LoadPipe::Request& req
     }
   }
 
-  // Sort the pipes with decreasing reliability order
+  /*
+   * Sort the pipes with decreasing reliability order
+   */
   std::sort( pipes_ret.begin()
            , pipes_ret.end()
            , [](const PipeInfo& lhs, const PipeInfo& rhs)
