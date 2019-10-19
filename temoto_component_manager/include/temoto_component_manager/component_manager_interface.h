@@ -51,12 +51,17 @@ class ComponentTopicsRes : public temoto_core::TopicContainer
 namespace temoto_component_manager
 {
 
+/**
+ * @brief Exposes simplified interface to Component Manager
+ * 
+ */
 template <class OwnerAction>
 class ComponentManagerInterface : public temoto_core::BaseSubsystem
 {
 public:
   /**
-   * @brief ComponentManagerInterface
+   * @brief Construct a new Component Manager Interface object
+   * 
    */
   ComponentManagerInterface()
   {
@@ -64,7 +69,7 @@ public:
   }
 
   /**
-   * @brief initialize
+   * @brief Initializes the ComponentManagerInterface. This function must be called before using any other methods of ComponentManagerInterface 
    * @param action
    */
   void initialize(OwnerAction* action)
@@ -79,9 +84,12 @@ public:
   }
 
   /**
-   * @brief startComponent
-   * @param component_type
-   * @returnstart
+   * @brief Invokes a component
+   * 
+   * @param component_type type of the component
+   * @param use_only_local_components defines whether components could be invoked from other TeMoto instances
+   * For example if invoking instance of TeMoto does not have a camera component, it asks other instances for the camera
+   * @return ComponentTopicsRes Contains information about the topics published by the invoked component
    */
   ComponentTopicsRes startComponent(const std::string& component_type, bool use_only_local_components = false)
   {
@@ -98,10 +106,13 @@ public:
   }
 
   /**
-   * @brief startComponent
-   * @param component_type
-   * @param topics
-   * @return
+   * @brief Invokes a component
+   * 
+   * @param component_type type of the component
+   * @param topics output topics that the requested component should provide 
+   * @param use_only_local_components defines whether components could be invoked from other TeMoto instances
+   * For example if invoking instance of TeMoto does not have a camera component, it asks other instances for the camera
+   * @return ComponentTopicsRes Contains information about the topics published by the invoked component 
    */
   ComponentTopicsRes startComponent( const std::string& component_type
                                    , const ComponentTopicsReq& topics
@@ -120,12 +131,15 @@ public:
   }
 
   /**
-   * @brief startComponent
-   * @param algorithm_type
-   * @param package_name
-   * @param ros_program_name
-   * @param topics
-   * @return
+   *  @brief Invokes a component
+   * 
+   * @param component_type type of the component
+   * @param package_name name of the component package 
+   * @param ros_program_name name of the node or launch file that should be executed in the package_name
+   * @param topics output topics that the requested component should provide 
+   * @param use_only_local_components defines whether components could be invoked from other TeMoto instances
+   * For example if invoking instance of TeMoto does not have a camera component, it asks other instances for the camera
+   * @return ComponentTopicsRes Contains information about the topics published by the invoked component
    */
   ComponentTopicsRes startComponent(const std::string& component_type
                             , const std::string& package_name
@@ -146,6 +160,18 @@ public:
     return startComponent(component_type, "", "", topics, ComponentTopicsReq(), use_only_local_components);
   }
 
+  /**
+   * @ @brief Invokes a component
+   * 
+   * @param component_type type of the component
+   * @param package_name name of the component package
+   * @param ros_program_name name of the node or launch file that should be executed in the package_name
+   * @param topics output topics that the requested component should provide. 
+   * @param parameters parameter specifications for the component, e.g., fame id, etc
+   * @param use_only_local_components defines whether components could be invoked from other TeMoto instances 
+   * For example if invoking instance of TeMoto does not have a camera component, it asks other instances for the camera
+   * @return ComponentTopicsRes Contains information about the topics published by the invoked component
+   */
   ComponentTopicsRes startComponent( const std::string& component_type
                                    , const std::string& package_name
                                    , const std::string& ros_program_name
@@ -183,10 +209,11 @@ public:
   }
 
   /**
-   * @brief stopComponent
-   * @param component_type
-   * @param package_name
-   * @param ros_program_name
+   * @brief Stops the componend based on its type, package name, and executable name
+   * 
+   * @param component_type type of the component
+   * @param package_name name of the component package 
+   * @param ros_program_name name of the node or launch file that should be executed in the package_name
    */
   void stopComponent(std::string component_type, std::string package_name, std::string ros_program_name)
   {
@@ -231,9 +258,12 @@ public:
   }
 
   /**
-   * @brief startPipe
-   * @param pipe_category
-   * @return
+   * @brief Invokes a pipe
+   * 
+   * @param pipe_category specifies the category of the pipe, defined in a pipes.yaml file
+   * @param segment_specifiers allows to set requirements for a specific segment within a pipe
+   * @param use_only_local_segments defines whether components could be invoked from other TeMoto instances
+   * @return temoto_core::TopicContainer Contains information about the topics published by the last segment of the pipe
    */
   temoto_core::TopicContainer startPipe( std::string pipe_category
     , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
@@ -274,7 +304,7 @@ public:
   }
 
   /**
-   * @brief 
+   * @brief Stops a pipe
    * 
    * @param pipe_category 
    * @param segment_specifiers 
@@ -326,8 +356,60 @@ public:
   }
 
   /**
-   * @brief statusInfoCb
-   * @param srv
+   * @brief Registers a custom component recovery routine
+   * 
+   * @param callback 
+   */
+  void registerComponentStatusCallback( void (OwnerAction::*callback )(const LoadComponent&))
+  {
+    component_status_callback_ = callback;
+  }
+
+  /**
+   * @brief Registers a custom pipe recovery routine
+   * 
+   * @param callback 
+   */
+  void registerPipeStatusCallback( void (OwnerAction::*callback )(const LoadPipe&))
+  {
+    pipe_status_callback_ = callback;
+  }
+
+  ~ComponentManagerInterface()
+  {
+  }
+
+  const std::string& getName() const
+  {
+    return name_;
+  }
+
+private:
+  std::string name_;
+  std::vector<LoadComponent> allocated_components_;
+  std::vector<LoadPipe> allocated_pipes_;
+
+  void(OwnerAction::*component_status_callback_)(const LoadComponent&) = NULL;
+  void(OwnerAction::*pipe_status_callback_)(const LoadPipe&) = NULL;
+
+  std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>> resource_manager_;
+  OwnerAction* owner_instance_;
+
+  /**
+   * @brief validateInterface
+   */
+  void validateInterface()
+  {
+    if(!resource_manager_)
+    {
+      throw CREATE_ERROR(temoto_core::error::Code::UNINITIALIZED, "Interface is not initalized.");
+    }
+  }
+
+  /**
+   * @brief Receives component status update messages from the Context Manager
+   * 
+   * @param srv 
    */
   void statusInfoCb(temoto_core::ResourceStatus& srv)
   {
@@ -435,57 +517,6 @@ public:
     catch (temoto_core::error::ErrorStack& error_stack)
     {
       throw FORWARD_ERROR(error_stack);
-    }
-  }
-
-  /**
-   * @brief 
-   * 
-   * @param callback 
-   */
-  void registerComponentStatusCallback( void (OwnerAction::*callback )(const LoadComponent&))
-  {
-    component_status_callback_ = callback;
-  }
-
-  /**
-   * @brief 
-   * 
-   * @param callback 
-   */
-  void registerPipeStatusCallback( void (OwnerAction::*callback )(const LoadPipe&))
-  {
-    pipe_status_callback_ = callback;
-  }
-
-  ~ComponentManagerInterface()
-  {
-  }
-
-  const std::string& getName() const
-  {
-    return name_;
-  }
-
-private:
-  std::string name_;
-  std::vector<LoadComponent> allocated_components_;
-  std::vector<LoadPipe> allocated_pipes_;
-
-  void(OwnerAction::*component_status_callback_)(const LoadComponent&) = NULL;
-  void(OwnerAction::*pipe_status_callback_)(const LoadPipe&) = NULL;
-
-  std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>> resource_manager_;
-  OwnerAction* owner_instance_;
-
-  /**
-   * @brief validateInterface
-   */
-  void validateInterface()
-  {
-    if(!resource_manager_)
-    {
-      throw CREATE_ERROR(temoto_core::error::Code::UNINITIALIZED, "Interface is not initalized.");
     }
   }
 };
