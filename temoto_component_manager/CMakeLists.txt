@@ -40,7 +40,6 @@ catkin_package(
   LIBRARIES yaml-cpp
   CATKIN_DEPENDS roscpp std_msgs diagnostic_msgs temoto_core temoto_action_engine temoto_er_manager
   DEPENDS 
-    TinyXML
 )
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})

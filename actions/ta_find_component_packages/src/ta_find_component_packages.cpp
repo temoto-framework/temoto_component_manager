@@ -18,7 +18,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 /* REQUIRED BY TEMOTO */
-#include <class_loader/class_loader.h>
+#include <class_loader/class_loader.hpp>
 #include "ta_find_component_packages/temoto_action.h"
 #include "ta_find_component_packages/macros.h"
 
