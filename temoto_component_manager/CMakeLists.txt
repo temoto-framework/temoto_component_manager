@@ -55,12 +55,21 @@ add_executable(temoto_component_manager
   src/component_info_registry.cpp
   src/component_info.cpp
 )
+
 add_dependencies(temoto_component_manager
   ${catkin_EXPORTED_TARGETS}
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
+
 target_link_libraries(temoto_component_manager
   ${catkin_LIBRARIES} 
   yaml-cpp 
 )
+
+install(TARGETS temoto_component_manager
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
 
