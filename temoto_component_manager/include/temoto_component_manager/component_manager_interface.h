@@ -55,7 +55,7 @@ namespace temoto_component_manager
  * @brief Exposes simplified interface to Component Manager
  * 
  */
-template <class OwnerAction>
+template <class ParentSubsystem>
 class ComponentManagerInterface : public temoto_core::BaseSubsystem
 {
 public:
@@ -64,22 +64,21 @@ public:
    * 
    */
   ComponentManagerInterface()
-  {
-    class_name_ = __func__;
-  }
+  : class_name_(__func__)
+  {}
 
   /**
    * @brief Initializes the ComponentManagerInterface. This function must be called before using any other methods of ComponentManagerInterface 
-   * @param action
+   * @param parent_subsystem
    */
-  void initialize(OwnerAction* action)
+  void initialize(ParentSubsystem* parent_subsystem)
   {
-    owner_instance_ = action;
-    initializeBase(action);
-    log_group_ = "interfaces." + action->getName();
-    name_ = action->getName() + "/component_manager_interface";
+    parent_subsystem_pointer_ = parent_subsystem;
+    initializeBase(parent_subsystem);
+    log_group_ = "interfaces." + parent_subsystem->class_name_;
+    subsystem_name_ = parent_subsystem->class_name_ + "/component_manager_interface";
 
-    resource_manager_ = std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>>(new temoto_core::rmp::ResourceManager<ComponentManagerInterface>(name_, this));
+    resource_manager_ = std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>>(new temoto_core::rmp::ResourceManager<ComponentManagerInterface>(subsystem_name_, this));
     resource_manager_->registerStatusCb(&ComponentManagerInterface::statusInfoCb);
   }
 
@@ -360,7 +359,7 @@ public:
    * 
    * @param callback 
    */
-  void registerComponentStatusCallback( void (OwnerAction::*callback )(const LoadComponent&))
+  void registerComponentStatusCallback( void (ParentSubsystem::*callback )(const LoadComponent&))
   {
     component_status_callback_ = callback;
   }
@@ -370,7 +369,7 @@ public:
    * 
    * @param callback 
    */
-  void registerPipeStatusCallback( void (OwnerAction::*callback )(const LoadPipe&))
+  void registerPipeStatusCallback( void (ParentSubsystem::*callback )(const LoadPipe&))
   {
     pipe_status_callback_ = callback;
   }
@@ -381,19 +380,18 @@ public:
 
   const std::string& getName() const
   {
-    return name_;
+    return subsystem_name_;
   }
 
 private:
-  std::string name_;
   std::vector<LoadComponent> allocated_components_;
   std::vector<LoadPipe> allocated_pipes_;
 
-  void(OwnerAction::*component_status_callback_)(const LoadComponent&) = NULL;
-  void(OwnerAction::*pipe_status_callback_)(const LoadPipe&) = NULL;
+  void(ParentSubsystem::*component_status_callback_)(const LoadComponent&) = NULL;
+  void(ParentSubsystem::*pipe_status_callback_)(const LoadPipe&) = NULL;
 
   std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>> resource_manager_;
-  OwnerAction* owner_instance_;
+  ParentSubsystem* parent_subsystem_pointer_;
 
   /**
    * @brief validateInterface
@@ -444,13 +442,13 @@ private:
           resource_manager_->unloadClientResource(component_it->response.rmp.resource_id);
           
           /*
-           * Check if the owner action has a status routine defined
+           * Check if the owner parent_subsystem has a status routine defined
            */
           if (component_status_callback_)
           {
-            TEMOTO_WARN_STREAM("Executing a custom recovery behaviour defined in Action '" 
-              << owner_instance_->getName() << "'.");
-            (owner_instance_->*component_status_callback_)(*component_it);
+            TEMOTO_WARN_STREAM("Executing a custom recovery behaviour defined in parent_subsystem '" 
+              << parent_subsystem_pointer_->class_name_ << "'.");
+            (parent_subsystem_pointer_->*component_status_callback_)(*component_it);
             return;
           }
           else
@@ -483,13 +481,13 @@ private:
           resource_manager_->unloadClientResource(component_it->response.rmp.resource_id);
 
           /*
-           * Check if the owner action has a status routine defined
+           * Check if the owner parent_subsystem has a status routine defined
            */
           if (pipe_status_callback_)
           {
-            TEMOTO_WARN_STREAM("Executing a custom recovery behaviour defined in Action '" 
-              << owner_instance_->getName() << "'.");
-            (owner_instance_->*pipe_status_callback_)(*pipe_it);
+            TEMOTO_WARN_STREAM("Executing a custom recovery behaviour defined in parent_subsystem '" 
+              << parent_subsystem_pointer_->class_name_ << "'.");
+            (parent_subsystem_pointer_->*pipe_status_callback_)(*pipe_it);
             return;
           }
           else
