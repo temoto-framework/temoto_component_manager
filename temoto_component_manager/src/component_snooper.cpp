@@ -87,7 +87,7 @@ void ComponentSnooper::startSnooping()
       find_components_umrf.setEffect("synchronous");
 
       ActionParameters ap;
-      ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../.."));
+      ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../../.."));
       ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
       find_components_umrf.setInputParameters(ap);
@@ -102,7 +102,7 @@ void ComponentSnooper::startSnooping()
       find_pipes_umrf.setEffect("synchronous");
 
       ActionParameters ap;
-      ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../.."));
+      ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../../.."));
       ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
       find_pipes_umrf.setInputParameters(ap);

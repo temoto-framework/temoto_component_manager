@@ -64,8 +64,9 @@ public:
    * 
    */
   ComponentManagerInterface()
-  : class_name_(__func__)
-  {}
+  {
+    class_name_ = __func__;
+  }
 
   /**
    * @brief Initializes the ComponentManagerInterface. This function must be called before using any other methods of ComponentManagerInterface 
