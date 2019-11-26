@@ -439,7 +439,7 @@ private:
 
         if (component_it != allocated_components_.end())
         {
-          TEMOTO_DEBUG("Sending a request to unload the failed component ...");
+          TEMOTO_WARN_STREAM("Sending a request to unload the failed component ...");
           resource_manager_->unloadClientResource(component_it->response.rmp.resource_id);
           
           /*
@@ -478,8 +478,8 @@ private:
 
         if (pipe_it != allocated_pipes_.end())
         {
-          TEMOTO_DEBUG("Sending a request to unload the failed pipe ...");
-          resource_manager_->unloadClientResource(component_it->response.rmp.resource_id);
+          TEMOTO_WARN("Sending a request to unload the failed pipe ...");
+          resource_manager_->unloadClientResource(pipe_it->response.rmp.resource_id);
 
           /*
            * Check if the owner parent_subsystem has a status routine defined
