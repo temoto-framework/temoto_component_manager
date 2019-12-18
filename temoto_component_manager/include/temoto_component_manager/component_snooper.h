@@ -20,7 +20,7 @@
 #define TEMOTO_COMPONENT__MANAGER_COMPONENT_SNOOPER_H
 
 #include "temoto_core/common/base_subsystem.h"
-#include "temoto_core/rmp/config_synchronizer.h"
+#include "temoto_core/trr/config_synchronizer.h"
 #include "temoto_component_manager/component_info_registry.h"
 #include "temoto_action_engine/action_engine.h"
 
@@ -99,7 +99,7 @@ private:
   ros::NodeHandle nh_;
 
   /// Object that handles component info syncronization.
-  temoto_core::rmp::ConfigSynchronizer<ComponentSnooper, PayloadType> config_syncer_;
+  temoto_core::trr::ConfigSynchronizer<ComponentSnooper, PayloadType> config_syncer_;
 
   /// Pointer to a central Component Info Registry object.
   ComponentInfoRegistry* cir_;

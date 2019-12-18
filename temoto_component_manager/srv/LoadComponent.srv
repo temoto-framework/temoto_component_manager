@@ -1,5 +1,5 @@
 # Remote Management Request
-temoto_core/RMPRequest rmp
+temoto_core/RMPRequest trr
 
 # Name of the component (not required)
 string component_name
@@ -35,7 +35,7 @@ diagnostic_msgs/KeyValue[] required_parameters
 ---
 
 # Remote Management Response
-temoto_core/RMPResponse rmp
+temoto_core/RMPResponse trr
 
 # name of the package
 string package_name

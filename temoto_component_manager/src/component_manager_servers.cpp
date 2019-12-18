@@ -31,21 +31,21 @@ using namespace temoto_core;
 ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfoRegistry *cir)
   : BaseSubsystem(*b, __func__)
   , cir_(cir)
-  , resource_manager_1_(srv_name::MANAGER, this)
-  , resource_manager_2_(srv_name::MANAGER_2, this)
+  , resource_registrar_1_(srv_name::MANAGER, this)
+  , resource_registrar_2_(srv_name::MANAGER_2, this)
 {
   // Start the component server
-  resource_manager_1_.addServer<LoadComponent>( srv_name::SERVER
+  resource_registrar_1_.addServer<LoadComponent>( srv_name::SERVER
                                               , &ComponentManagerServers::loadComponentCb
                                               , &ComponentManagerServers::unloadComponentCb);
 
-  resource_manager_2_.addServer<LoadPipe>( srv_name::PIPE_SERVER
+  resource_registrar_2_.addServer<LoadPipe>( srv_name::PIPE_SERVER
                                          , &ComponentManagerServers::loadPipeCb
                                          , &ComponentManagerServers::unloadPipeCb);
 
   // Register callback for status info
-  resource_manager_1_.registerStatusCb(&ComponentManagerServers::statusCb1);
-  resource_manager_2_.registerStatusCb(&ComponentManagerServers::statusCb2);
+  resource_registrar_1_.registerStatusCb(&ComponentManagerServers::statusCb1);
+  resource_registrar_2_.registerStatusCb(&ComponentManagerServers::statusCb2);
 
   list_components_server_ = nh_.advertiseService( srv_name::LIST_COMPONENTS_SERVER
                                                 , &ComponentManagerServers::listComponentsCb
@@ -71,7 +71,7 @@ void ComponentManagerServers::statusCb1(temoto_core::ResourceStatus& srv)
 
   // If local component failed, adjust package reliability and advertise to other managers via
   // synchronizer.
-  if (srv.request.status_code == rmp::status_codes::FAILED)
+  if (srv.request.status_code == trr::status_codes::FAILED)
   {
     auto it = allocated_components_.find(srv.request.resource_id);
     if (it != allocated_components_.end())
@@ -99,7 +99,7 @@ void ComponentManagerServers::statusCb2(temoto_core::ResourceStatus& srv)
 
   // If local sensor failed, adjust package reliability and advertise to other managers via
   // synchronizer.
-  if (srv.request.status_code == temoto_core::rmp::status_codes::FAILED)
+  if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
   {
     TEMOTO_DEBUG("A resource, that a running pipe depends on, has failed");
 
@@ -207,7 +207,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
   bool prefer_remote = false;
   if (got_local_components
       && got_remote_components
-      && (req.rmp.temoto_namespace == common::getTemotoNamespace())
+      && (req.trr.temoto_namespace == common::getTemotoNamespace())
       && req.use_only_local_components == false)
   {
     /*
@@ -247,10 +247,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
          * External Resource Manager does not start another component but rather just increases
          * it's use count.
          */ 
-        resource_manager_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
+        resource_registrar_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
                                                       , temoto_er_manager::srv_name::SERVER
                                                       , load_er_msg
-                                                      , rmp::FailureBehavior::NONE);
+                                                      , trr::FailureBehavior::NONE);
 
         /*
          * Set up the topics that are returned to the client
@@ -276,10 +276,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             load_er_msg_remapper.request.executable = "relay";
             load_er_msg_remapper.request.args = alloc_comp_info.getInputTopic(input_topic.key) + " " + input_topic.value;
             
-            resource_manager_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
+            resource_registrar_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
                                                       , temoto_er_manager::srv_name::SERVER
                                                       , load_er_msg_remapper
-                                                      , rmp::FailureBehavior::NONE);
+                                                      , trr::FailureBehavior::NONE);
 
             res.input_topics.push_back(input_topic);
           }
@@ -305,10 +305,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             load_er_msg_remapper.request.executable = "relay";
             load_er_msg_remapper.request.args = alloc_comp_info.getOutputTopic(output_topic.key) + " " + output_topic.value;
 
-            resource_manager_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
+            resource_registrar_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
                                                       , temoto_er_manager::srv_name::SERVER
                                                       , load_er_msg_remapper
-                                                      , rmp::FailureBehavior::NONE);
+                                                      , trr::FailureBehavior::NONE);
 
             res.output_topics.push_back(output_topic);
           }
@@ -354,10 +354,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
       try
       {
-        resource_manager_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
+        resource_registrar_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
                                                                     , temoto_er_manager::srv_name::SERVER
                                                                     , load_er_msg
-                                                                    , rmp::FailureBehavior::NONE);
+                                                                    , trr::FailureBehavior::NONE);
 
         TEMOTO_DEBUG("Call to ProcessManager was sucessful.");
 
@@ -367,8 +367,8 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
         ci.adjustReliability(1.0);
         cir_->updateLocalComponent(ci);
-        allocated_components_.emplace(res.rmp.resource_id, ci);
-        allocated_ext_resources_.emplace(res.rmp.resource_id, load_er_msg);
+        allocated_components_.emplace(res.trr.resource_id, ci);
+        allocated_ext_resources_.emplace(res.trr.resource_id, load_er_msg);
 
         return;
       }
@@ -410,15 +410,15 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
       try
       {
-        resource_manager_1_.call<LoadComponent>( srv_name::MANAGER
+        resource_registrar_1_.call<LoadComponent>( srv_name::MANAGER
                                               , srv_name::SERVER
                                               , load_component_msg
-                                              , rmp::FailureBehavior::NONE
+                                              , trr::FailureBehavior::NONE
                                               , ci.getTemotoNamespace());
 
         TEMOTO_DEBUG("Call to remote ComponentManagerServers was sucessful.");
         res = load_component_msg.response;
-        allocated_components_.emplace(res.rmp.resource_id, ci);
+        allocated_components_.emplace(res.trr.resource_id, ci);
       }
       catch(error::ErrorStack& error_stack)
       {
@@ -444,9 +444,9 @@ void ComponentManagerServers::unloadComponentCb( LoadComponent::Request& req
   (void)req;
   (void)res;
 
-  TEMOTO_DEBUG("received a request to stop component with id '%ld'", res.rmp.resource_id);
-  allocated_components_.erase(res.rmp.resource_id);
-  allocated_ext_resources_.erase(res.rmp.resource_id);
+  TEMOTO_DEBUG("received a request to stop component with id '%ld'", res.trr.resource_id);
+  allocated_components_.erase(res.trr.resource_id);
+  allocated_ext_resources_.erase(res.trr.resource_id);
   return;
 }
 
@@ -545,12 +545,12 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
         }
 
         // Call the Component Manager
-        resource_manager_2_.call<temoto_component_manager::LoadComponent>(temoto_component_manager::srv_name::MANAGER,
+        resource_registrar_2_.call<temoto_component_manager::LoadComponent>(temoto_component_manager::srv_name::MANAGER,
                                                                           temoto_component_manager::srv_name::SERVER,
                                                                           load_component_msg);
 
         // TODO: REMOVE AFTER RMP HAS THIS FUNCTIONALITY
-        sub_resource_ids.push_back(load_component_msg.response.rmp.resource_id);
+        sub_resource_ids.push_back(load_component_msg.response.trr.resource_id);
 
         required_topics.setInputTopicsByKeyValue(load_component_msg.response.output_topics);
       }
@@ -562,8 +562,8 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
       pipe.reliability_.adjustReliability();
       cir_->updatePipe(pipe);
 
-      //allocated_pipes_[res.rmp.resource_id] = pipe;
-      allocated_pipes_hack_[res.rmp.resource_id] = std::pair<PipeInfo, std::vector<int>>(pipe, sub_resource_ids);
+      //allocated_pipes_[res.trr.resource_id] = pipe;
+      allocated_pipes_hack_[res.trr.resource_id] = std::pair<PipeInfo, std::vector<int>>(pipe, sub_resource_ids);
 
       return;
     }
@@ -585,7 +585,7 @@ void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Res
   (void)req; // Suppress "unused parameter" compiler warnings
 
   // Remove the pipe from the list of allocated pipes
-  auto it = allocated_pipes_hack_.find(res.rmp.resource_id);
+  auto it = allocated_pipes_hack_.find(res.trr.resource_id);
   if (it != allocated_pipes_hack_.end())
   {
     TEMOTO_DEBUG_STREAM("Erasing a pipe from the list of allocated pipes");

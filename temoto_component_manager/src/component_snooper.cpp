@@ -203,14 +203,14 @@ std::vector<ComponentInfoPtr> ComponentSnooper::parseComponents(const YAML::Node
 void ComponentSnooper::syncCb(const temoto_core::ConfigSync& msg, const PayloadType& payload)
 {
 
-  if (msg.action == rmp::sync_action::REQUEST_CONFIG)
+  if (msg.action == trr::sync_action::REQUEST_CONFIG)
   {
     std::cout << "Received a request to advertise local components" << std::endl;
     advertiseLocalComponents();
     return;
   }
 
-  if (msg.action == rmp::sync_action::ADVERTISE_CONFIG)
+  if (msg.action == trr::sync_action::ADVERTISE_CONFIG)
   {
     std::cout << "Received a request to add or update remote components" << std::endl;
 

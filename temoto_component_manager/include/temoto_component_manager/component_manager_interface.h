@@ -21,7 +21,7 @@
 
 #include "temoto_core/common/base_subsystem.h"
 #include "temoto_core/common/topic_container.h"
-#include "temoto_core/rmp/resource_manager.h"
+#include "temoto_core/trr/resource_registrar.h"
 
 #include "temoto_component_manager/component_manager_services.h"
 #include <memory> //unique_ptr
@@ -79,8 +79,8 @@ public:
     log_group_ = "interfaces." + parent_subsystem->class_name_;
     subsystem_name_ = parent_subsystem->class_name_ + "/component_manager_interface";
 
-    resource_manager_ = std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>>(new temoto_core::rmp::ResourceManager<ComponentManagerInterface>(subsystem_name_, this));
-    resource_manager_->registerStatusCb(&ComponentManagerInterface::statusInfoCb);
+    resource_registrar_ = std::unique_ptr<temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>>(new temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>(subsystem_name_, this));
+    resource_registrar_->registerStatusCb(&ComponentManagerInterface::statusInfoCb);
   }
 
   /**
@@ -192,7 +192,7 @@ public:
     // Call the server    
     try
     {
-      resource_manager_->template call<LoadComponent>(srv_name::MANAGER,
+      resource_registrar_->template call<LoadComponent>(srv_name::MANAGER,
                                                       srv_name::SERVER,
                                                       srv_msg);
     }
@@ -248,7 +248,7 @@ public:
     try
     {
       // do the unloading
-      resource_manager_->unloadClientResource(found_component_it->response.rmp.resource_id);
+      resource_registrar_->unloadClientResource(found_component_it->response.trr.resource_id);
       allocated_components_.erase(found_component_it);
     }
     catch (temoto_core::error::ErrorStack& error_stack)
@@ -287,7 +287,7 @@ public:
 
     try
     {
-      resource_manager_->template call<LoadPipe>(srv_name::MANAGER_2,
+      resource_registrar_->template call<LoadPipe>(srv_name::MANAGER_2,
                                                  srv_name::PIPE_SERVER,
                                                  load_pipe_msg);
       allocated_pipes_.push_back(load_pipe_msg);
@@ -346,7 +346,7 @@ public:
     try
     {
       // Do the unloading
-      resource_manager_->unloadClientResource(found_pipe_it->response.rmp.resource_id);
+      resource_registrar_->unloadClientResource(found_pipe_it->response.trr.resource_id);
       allocated_pipes_.erase(found_pipe_it);
     }
     catch (temoto_core::error::ErrorStack& error_stack)
@@ -391,7 +391,7 @@ private:
   void(ParentSubsystem::*component_status_callback_)(const LoadComponent&) = NULL;
   void(ParentSubsystem::*pipe_status_callback_)(const LoadPipe&) = NULL;
 
-  std::unique_ptr<temoto_core::rmp::ResourceManager<ComponentManagerInterface>> resource_manager_;
+  std::unique_ptr<temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>> resource_registrar_;
   ParentSubsystem* parent_subsystem_pointer_;
 
   /**
@@ -399,7 +399,7 @@ private:
    */
   void validateInterface()
   {
-    if(!resource_manager_)
+    if(!resource_registrar_)
     {
       throw CREATE_ERROR(temoto_core::error::Code::UNINITIALIZED, "Interface is not initalized.");
     }
@@ -423,7 +423,7 @@ private:
       * If the status message indicates a resource failure, then find out what was
       * the exact resource and execute a recovery behaviour
       */
-      if (srv.request.status_code == temoto_core::rmp::status_codes::FAILED)
+      if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
       {
         TEMOTO_WARN("The status info reported a resource failure.");
 
@@ -434,13 +434,13 @@ private:
           allocated_components_.begin(),
           allocated_components_.end(),
           [&](const temoto_component_manager::LoadComponent& comp) -> bool {
-            return comp.response.rmp.resource_id == srv.request.resource_id;
+            return comp.response.trr.resource_id == srv.request.resource_id;
           });
 
         if (component_it != allocated_components_.end())
         {
           TEMOTO_WARN_STREAM("Sending a request to unload the failed component ...");
-          resource_manager_->unloadClientResource(component_it->response.rmp.resource_id);
+          resource_registrar_->unloadClientResource(component_it->response.trr.resource_id);
           
           /*
            * Check if the owner parent_subsystem has a status routine defined
@@ -459,7 +459,7 @@ private:
 
             // this call automatically updates the response in allocated components vec
             component_it->request.output_topics = component_it->response.output_topics;
-            resource_manager_->template call<LoadComponent>(srv_name::MANAGER,
+            resource_registrar_->template call<LoadComponent>(srv_name::MANAGER,
                                                             srv_name::SERVER,
                                                             *component_it);
           }
@@ -473,13 +473,13 @@ private:
           allocated_pipes_.begin(), 
           allocated_pipes_.end(),
           [&](const LoadPipe& pipe) -> bool {
-            return pipe.response.rmp.resource_id == srv.request.resource_id;
+            return pipe.response.trr.resource_id == srv.request.resource_id;
           });
 
         if (pipe_it != allocated_pipes_.end())
         {
           TEMOTO_WARN("Sending a request to unload the failed pipe ...");
-          resource_manager_->unloadClientResource(pipe_it->response.rmp.resource_id);
+          resource_registrar_->unloadClientResource(pipe_it->response.trr.resource_id);
 
           /*
            * Check if the owner parent_subsystem has a status routine defined
@@ -501,7 +501,7 @@ private:
             // ... and load an alternative pipe. This call automatically
             // updates the response in allocated pipes vector
             TEMOTO_DEBUG_STREAM("Trying to load an alternative pipe");
-            resource_manager_->template call<LoadPipe>(srv_name::MANAGER_2,
+            resource_registrar_->template call<LoadPipe>(srv_name::MANAGER_2,
                                                       srv_name::PIPE_SERVER,
                                                       *pipe_it);
           }

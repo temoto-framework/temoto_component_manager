@@ -21,7 +21,7 @@
 
 #include "temoto_core/common/base_subsystem.h"
 #include "temoto_core/common/temoto_id.h"
-#include "temoto_core/rmp/resource_manager.h"
+#include "temoto_core/trr/resource_registrar.h"
 #include "temoto_component_manager/component_info_registry.h"
 #include "temoto_component_manager/component_manager_services.h"
 #include "temoto_er_manager/temoto_er_manager_services.h"
@@ -142,13 +142,13 @@ private:
   ComponentInfoRegistry* cir_;
 
   /// Resource Management object which handles resource requests and status info propagation.
-  temoto_core::rmp::ResourceManager<ComponentManagerServers> resource_manager_1_;
+  temoto_core::trr::ResourceRegistrar<ComponentManagerServers> resource_registrar_1_;
 
   /*
    * TODO: The second manager is used for making RMP calls within the same manager. If the same
    * resouce manager is used for calling servers managed by the same manager, the calls will lock
    */
-  temoto_core::rmp::ResourceManager<ComponentManagerServers> resource_manager_2_;
+  temoto_core::trr::ResourceRegistrar<ComponentManagerServers> resource_registrar_2_;
 
   /// Generates unique id's for the pipes
   temoto_core::temoto_id::IDManager pipe_id_generator_;
