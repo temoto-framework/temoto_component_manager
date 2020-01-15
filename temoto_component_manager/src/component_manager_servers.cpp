@@ -55,6 +55,9 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
                                            , &ComponentManagerServers::listPipesCb
                                            , this);
 
+  // Register the component update callback
+  cir_->registerUpdateCallback(std::bind(&ComponentManagerServers::componentUpdateCallback, this, std::placeholders::_1));                                         
+
   TEMOTO_INFO("Component manager is ready.");
 }
 
@@ -760,6 +763,11 @@ temoto_core::temoto_id::ID ComponentManagerServers::checkIfInUse( const std::vec
     }
   }
   return temoto_core::temoto_id::UNASSIGNED_ID;
+}
+
+void ComponentManagerServers::componentUpdateCallback(int test)
+{
+  std::cout << "This is a message" << test << " from " << __func__ << " and it seems that everything is working" << std::endl;
 }
 
 }  // component_manager namespace

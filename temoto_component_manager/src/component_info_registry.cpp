@@ -30,6 +30,12 @@ bool ComponentInfoRegistry::addLocalComponent(const ComponentInfo& si)
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
+  // TODO: remove this section after testing
+  if (update_callback_)
+  {
+    update_callback_(4);
+  }
+
   // Check if there is no such component
   ComponentInfo si_ret;
   if (!findComponent(si, local_components_, si_ret))

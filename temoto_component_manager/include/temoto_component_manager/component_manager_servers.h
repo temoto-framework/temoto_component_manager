@@ -56,6 +56,13 @@ public:
   {
     return subsystem_name_;
   }
+
+  /**
+   * @brief TODO:test
+   * 
+   * @param test 
+   */
+  void componentUpdateCallback(int test);
     
 private:
 

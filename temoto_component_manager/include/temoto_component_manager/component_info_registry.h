@@ -76,6 +76,11 @@ public:
 
   bool updatePipe( const PipeInfo& pi );
 
+  void registerUpdateCallback( std::function<void(int)> update_callback)
+  {
+    update_callback_ = update_callback;
+  }
+
 private:
 
   /**
@@ -123,6 +128,9 @@ private:
    * @return PipeInfo* 
    */
   PipeInfo* findPipe ( const PipeInfo& pi );
+
+  /// Update callback
+  std::function<void(int)> update_callback_;
 
   /// List of all locally defined components.
   std::vector<ComponentInfo> local_components_;
