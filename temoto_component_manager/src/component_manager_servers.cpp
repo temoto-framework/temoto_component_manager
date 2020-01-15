@@ -56,7 +56,7 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
                                            , this);
 
   // Register the component update callback
-  cir_->registerUpdateCallback(std::bind(&ComponentManagerServers::componentUpdateCallback, this, std::placeholders::_1));                                         
+  cir_->registerUpdateCallback(std::bind(&ComponentManagerServers::cirUpdateCallback, this, std::placeholders::_1));                                       
 
   TEMOTO_INFO("Component manager is ready.");
 }
@@ -765,9 +765,27 @@ temoto_core::temoto_id::ID ComponentManagerServers::checkIfInUse( const std::vec
   return temoto_core::temoto_id::UNASSIGNED_ID;
 }
 
-void ComponentManagerServers::componentUpdateCallback(int test)
+void ComponentManagerServers::cirUpdateCallback(ComponentInfo component)
 {
-  std::cout << "This is a message" << test << " from " << __func__ << " and it seems that everything is working" << std::endl;
+  TEMOTO_DEBUG_STREAM("A component was added or updated ...");
+
+  for (const auto allocated_component : allocated_components_)
+  {
+    if (component.getType() != allocated_component.second.getType())
+    {
+      continue;
+    }
+    if (component.getReliability() <= allocated_component.second.getReliability())
+    {
+      continue;
+    }
+
+    temoto_core::ResourceStatus status_message;
+    status_message.request.resource_id = allocated_component.first;
+    status_message.request.status_code = trr::status_codes::UPDATE;
+    status_message.request.message = "A component that is currently loaded got a more reliable alternative component";
+    resource_registrar_1_.sendStatus(status_message);
+  }
 }
 
 }  // component_manager namespace

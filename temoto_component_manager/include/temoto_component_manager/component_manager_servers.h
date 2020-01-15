@@ -62,7 +62,7 @@ public:
    * 
    * @param test 
    */
-  void componentUpdateCallback(int test);
+  void cirUpdateCallback(ComponentInfo component);
     
 private:
 

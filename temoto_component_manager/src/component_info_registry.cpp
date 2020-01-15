@@ -25,22 +25,54 @@ using namespace temoto_core;
 
 ComponentInfoRegistry::ComponentInfoRegistry(){}
 
-bool ComponentInfoRegistry::addLocalComponent(const ComponentInfo& si)
+void ComponentInfoRegistry::registerUpdateCallback( std::function<void(ComponentInfo)> cir_update_callback)
+{
+  // TODO: Check if the callback is unique
+  cir_update_callbacks_.push_back(cir_update_callback);
+}
+
+bool ComponentInfoRegistry::callUpdateCallbacks(ComponentInfo ci)
+{
+  bool all_cbs_invoked_successfully = true;
+  for (const auto& cir_update_callback : cir_update_callbacks_)
+  {
+    if(!cir_update_callback)
+    {
+      all_cbs_invoked_successfully = false;
+      continue;
+    }
+    try
+    {
+      cir_update_callback(ci);
+    }
+    catch(const std::exception& e)
+    {
+      all_cbs_invoked_successfully = false;
+      continue;
+    }
+    catch(...)
+    {
+      all_cbs_invoked_successfully = false;
+      continue;
+    }
+  }
+  return all_cbs_invoked_successfully;
+}
+
+bool ComponentInfoRegistry::addLocalComponent(const ComponentInfo& ci)
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
-  // TODO: remove this section after testing
-  if (update_callback_)
-  {
-    update_callback_(4);
-  }
-
   // Check if there is no such component
-  ComponentInfo si_ret;
-  if (!findComponent(si, local_components_, si_ret))
+  ComponentInfo ci_ret;
+  if (!findComponent(ci, local_components_, ci_ret))
   {
-    local_components_.push_back(si);
+    local_components_.push_back(ci);
+
+    // Trigger the cir update callback
+    callUpdateCallbacks(ci);
+
     return true;
   }
 
@@ -48,16 +80,16 @@ bool ComponentInfoRegistry::addLocalComponent(const ComponentInfo& si)
   return false;
 }
 
-bool ComponentInfoRegistry::addRemoteComponent(const ComponentInfo &si)
+bool ComponentInfoRegistry::addRemoteComponent(const ComponentInfo &ci)
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
   // Check if there is no such component
-  ComponentInfo si_ret;
-  if (!findComponent(si, remote_components_, si_ret))
+  ComponentInfo ci_ret;
+  if (!findComponent(ci, remote_components_, ci_ret))
   {
-    remote_components_.push_back(si);
+    remote_components_.push_back(ci);
     return true;
   }
 
@@ -65,7 +97,7 @@ bool ComponentInfoRegistry::addRemoteComponent(const ComponentInfo &si)
   return false;
 }
 
-bool ComponentInfoRegistry::updateLocalComponent(const ComponentInfo &si, bool advertised)
+bool ComponentInfoRegistry::updateLocalComponent(const ComponentInfo &ci, bool advertised)
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
@@ -74,13 +106,13 @@ bool ComponentInfoRegistry::updateLocalComponent(const ComponentInfo &si, bool a
                               , local_components_.end()
                               , [&](const ComponentInfo& ls)
                               {
-                                return ls == si;
+                                return ls == ci;
                               });
 
   // Update the local component if its found
   if (it != local_components_.end())
   {
-    *it = si;
+    *it = ci;
     it->setAdvertised( advertised );
     return true;
   }
@@ -89,7 +121,7 @@ bool ComponentInfoRegistry::updateLocalComponent(const ComponentInfo &si, bool a
   return false;
 }
 
-bool ComponentInfoRegistry::updateRemoteComponent(const ComponentInfo &si, bool advertised)
+bool ComponentInfoRegistry::updateRemoteComponent(const ComponentInfo &ci, bool advertised)
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
@@ -98,13 +130,13 @@ bool ComponentInfoRegistry::updateRemoteComponent(const ComponentInfo &si, bool 
                               , remote_components_.end()
                               , [&](const ComponentInfo& rs)
                               {
-                                return rs == si;
+                                return rs == ci;
                               });
 
   // Update the local component if its found
   if (it != remote_components_.end())
   {
-    *it = si;
+    *it = ci;
     it->setAdvertised( advertised );
     return true;
   }
@@ -114,55 +146,55 @@ bool ComponentInfoRegistry::updateRemoteComponent(const ComponentInfo &si, bool 
 }
 
 bool ComponentInfoRegistry::findLocalComponents( LoadComponent::Request& req
-                                         , std::vector<ComponentInfo>& si_ret ) const
+                                         , std::vector<ComponentInfo>& ci_ret ) const
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
-  return findComponents(req, local_components_, si_ret);
+  return findComponents(req, local_components_, ci_ret);
 }
 
-bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &si, ComponentInfo& si_ret ) const
+bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &ci, ComponentInfo& ci_ret ) const
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
-  return findComponent(si, local_components_, si_ret);
+  return findComponent(ci, local_components_, ci_ret);
 }
 
-bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &si ) const
+bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &ci ) const
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
-  ComponentInfo si_ret;
-  return findComponent(si, local_components_, si_ret);
+  ComponentInfo ci_ret;
+  return findComponent(ci, local_components_, ci_ret);
 }
 
 bool ComponentInfoRegistry::findRemoteComponents( LoadComponent::Request& req
-                                          , std::vector<ComponentInfo>& si_ret ) const
+                                          , std::vector<ComponentInfo>& ci_ret ) const
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
-  return findComponents(req, remote_components_, si_ret);
+  return findComponents(req, remote_components_, ci_ret);
 }
 
-bool ComponentInfoRegistry::findRemoteComponent( const ComponentInfo &si, ComponentInfo& si_ret ) const
+bool ComponentInfoRegistry::findRemoteComponent( const ComponentInfo &ci, ComponentInfo& ci_ret ) const
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
-  return findComponent(si, remote_components_, si_ret);
+  return findComponent(ci, remote_components_, ci_ret);
 }
 
-bool ComponentInfoRegistry::findRemoteComponent( const ComponentInfo &si ) const
+bool ComponentInfoRegistry::findRemoteComponent( const ComponentInfo &ci ) const
 {
   // Lock the mutex
   std::lock_guard<std::mutex> guard(read_write_mutex);
 
-  ComponentInfo si_ret;
-  return findComponent(si, remote_components_, si_ret);
+  ComponentInfo ci_ret;
+  return findComponent(ci, remote_components_, ci_ret);
 }
 
 bool ComponentInfoRegistry::compareTopics( const std::vector<temoto_core::StringPair>& l_topics
@@ -203,7 +235,7 @@ bool ComponentInfoRegistry::compareTopics( const std::vector<temoto_core::String
 
 bool ComponentInfoRegistry::findComponents( LoadComponent::Request& req
                                     , const std::vector<ComponentInfo>& components
-                                    , std::vector<ComponentInfo>& si_ret ) const
+                                    , std::vector<ComponentInfo>& ci_ret ) const
 {
   // Local list of devices that follow the requirements
   std::vector<ComponentInfo> candidates;
@@ -294,9 +326,9 @@ bool ComponentInfoRegistry::findComponents( LoadComponent::Request& req
   // Sort remaining candidates based on their reliability.
   std::sort( candidates.begin()
            , it_end
-           , [](ComponentInfo& s1, ComponentInfo& s2)
+           , [](ComponentInfo& ci1, ComponentInfo& s2)
              {
-               return s1.getReliability() > s2.getReliability();
+               return ci1.getReliability() > s2.getReliability();
              });
 
   if (candidates.begin() == it_end)
@@ -306,19 +338,19 @@ bool ComponentInfoRegistry::findComponents( LoadComponent::Request& req
   }
 
   // Return the first component of the requested type.
-  si_ret = candidates;
+  ci_ret = candidates;
   return true;
 }
 
-bool ComponentInfoRegistry::findComponent( const ComponentInfo &si
+bool ComponentInfoRegistry::findComponent( const ComponentInfo &ci
                                    , const std::vector<ComponentInfo>& components
-                                   , ComponentInfo& si_ret ) const
+                                   , ComponentInfo& ci_ret ) const
 {
   const auto it = std::find_if( components.begin()
                               , components.end()
                               , [&](const ComponentInfo& rs)
                               {
-                                return rs == si;
+                                return rs == ci;
                               });
 
 
@@ -328,7 +360,7 @@ bool ComponentInfoRegistry::findComponent( const ComponentInfo &si
   }
   else
   {
-    si_ret = *it;
+    ci_ret = *it;
     return true;
   }
 }

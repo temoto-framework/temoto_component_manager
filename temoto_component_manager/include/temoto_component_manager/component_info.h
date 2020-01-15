@@ -152,26 +152,26 @@ typedef std::vector<ComponentInfoPtr> ComponentInfoPtrs;
 // TODO: Not sure how to declare operators in a header, implement them in src
 //       and not brake everything (linking problems in places where
 //       component_info.cpp has to be linked)
-static bool operator==(const ComponentInfo& s1, const ComponentInfo& s2)
+static bool operator==(const ComponentInfo& ci1, const ComponentInfo& ci2)
 {
   // Check the namespace, executable and name of the package
-  if (s1.getTemotoNamespace() != s2.getTemotoNamespace() ||
-      s1.getExecutable() != s2.getExecutable() ||
-      s1.getPackageName() != s2.getPackageName())
+  if (ci1.getTemotoNamespace() != ci2.getTemotoNamespace() ||
+      ci1.getExecutable() != ci2.getExecutable() ||
+      ci1.getPackageName() != ci2.getPackageName())
   {
     return false;
   }
 
   // Check the size of input and output topics
-  if (s1.getInputTopics().size() != s2.getInputTopics().size() ||
-      s1.getOutputTopics().size() != s2.getOutputTopics().size())
+  if (ci1.getInputTopics().size() != ci2.getInputTopics().size() ||
+      ci1.getOutputTopics().size() != ci2.getOutputTopics().size())
   {
     return false;
   }
 
   // Check the input topics
-  auto input_topics_2_copy = s2.getInputTopics();
-  for (auto& input_topic_1 : s1.getInputTopics())
+  auto input_topics_2_copy = ci2.getInputTopics();
+  for (auto& input_topic_1 : ci1.getInputTopics())
   {
     bool topic_found = false;
     for (auto it=input_topics_2_copy.begin(); it!=input_topics_2_copy.end(); it++)
@@ -191,8 +191,8 @@ static bool operator==(const ComponentInfo& s1, const ComponentInfo& s2)
   }
 
   // Check the output topics
-  auto output_topics_2_copy = s2.getOutputTopics();
-  for (auto& output_topic_1 : s1.getOutputTopics())
+  auto output_topics_2_copy = ci2.getOutputTopics();
+  for (auto& output_topic_1 : ci1.getOutputTopics())
   {
     bool topic_found = false;
     for (auto it=output_topics_2_copy.begin(); it!=output_topics_2_copy.end(); it++)

@@ -209,7 +209,39 @@ public:
   }
 
   /**
-   * @brief Stops the componend based on its type, package name, and executable name
+   * @brief Stops the component
+   * 
+   * @param load_comp_req 
+   */
+  void stopComponent(const temoto_component_manager::LoadComponent& load_comp_msg)
+  {
+    // The == operator used in the lambda function is defined in
+    // component manager services header
+    auto found_component_it = std::find_if(
+        allocated_components_.begin(),
+        allocated_components_.end(),
+        [&](const LoadComponent& srv_msg) -> bool{ return srv_msg.request == load_comp_msg.request; });
+
+    if (found_component_it == allocated_components_.end())
+    {
+      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL, "Unable to unload resource that is not "
+                                                            "loaded.");
+    }
+
+    try
+    {
+      // do the unloading
+      resource_registrar_->unloadClientResource(found_component_it->response.trr.resource_id);
+      allocated_components_.erase(found_component_it);
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      throw FORWARD_ERROR(error_stack);
+    }
+  }
+
+  /**
+   * @brief Stops the component based on its type, package name, and executable name
    * 
    * @param component_type type of the component
    * @param package_name name of the component package 
@@ -232,29 +264,7 @@ public:
     req.package_name = package_name;
     req.executable = ros_program_name;
 
-    // The == operator used in the lambda function is defined in
-    // component manager services header
-    auto found_component_it = std::find_if(
-        allocated_components_.begin(),
-        allocated_components_.end(),
-        [&](const LoadComponent& srv_msg) -> bool{ return srv_msg.request == req; });
-
-    if (found_component_it == allocated_components_.end())
-    {
-      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL, "Unable to unload resource that is not "
-                                                            "loaded.");
-    }
-
-    try
-    {
-      // do the unloading
-      resource_registrar_->unloadClientResource(found_component_it->response.trr.resource_id);
-      allocated_components_.erase(found_component_it);
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
+    stopComponent(req);
   }
 
   /**
@@ -366,6 +376,16 @@ public:
   }
 
   /**
+   * @brief Registers a custom update routine
+   * 
+   * @param callback 
+   */
+  void registerComponentUpdateCallback( void (ParentSubsystem::*callback )(const LoadComponent&))
+  {
+    component_update_callback_ = callback;
+  }
+
+  /**
    * @brief Registers a custom pipe recovery routine
    * 
    * @param callback 
@@ -389,6 +409,7 @@ private:
   std::vector<LoadPipe> allocated_pipes_;
 
   void(ParentSubsystem::*component_status_callback_)(const LoadComponent&) = NULL;
+  void(ParentSubsystem::*component_update_callback_)(const LoadComponent&) = NULL;
   void(ParentSubsystem::*pipe_status_callback_)(const LoadPipe&) = NULL;
 
   std::unique_ptr<temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>> resource_registrar_;
@@ -512,6 +533,28 @@ private:
         // throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
         //                    "resource that does not exist.");
       }
+      else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
+      {
+        TEMOTO_DEBUG_STREAM(srv.request.message);
+
+        auto component_it = std::find_if(
+          allocated_components_.begin(),
+          allocated_components_.end(),
+          [&](const temoto_component_manager::LoadComponent& comp) -> bool {
+            return comp.response.trr.resource_id == srv.request.resource_id;
+          });
+
+        if (component_it == allocated_components_.end())
+        {
+          TEMOTO_ERROR_STREAM("Resource status arrived for a resource that does not exist.");
+          return;
+        }
+        TEMOTO_DEBUG_STREAM("Executing a custom update behaviour defined in parent_subsystem '" 
+          << parent_subsystem_pointer_->class_name_ << "'.");
+          (parent_subsystem_pointer_->*component_update_callback_)(*component_it);
+        return;
+      }
+      
     }
     catch (temoto_core::error::ErrorStack& error_stack)
     {

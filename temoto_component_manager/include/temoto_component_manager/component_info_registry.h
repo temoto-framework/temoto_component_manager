@@ -44,25 +44,25 @@ public:
 
   ComponentInfoRegistry();
 
-  bool findLocalComponents( temoto_component_manager::LoadComponent::Request& req, std::vector<ComponentInfo>& si_ret ) const;
+  bool findLocalComponents( temoto_component_manager::LoadComponent::Request& req, std::vector<ComponentInfo>& ci_ret ) const;
 
-  bool findLocalComponent( const ComponentInfo& si, ComponentInfo& si_ret ) const;
+  bool findLocalComponent( const ComponentInfo& ci, ComponentInfo& ci_ret ) const;
 
-  bool findLocalComponent( const ComponentInfo& si ) const;
+  bool findLocalComponent( const ComponentInfo& ci ) const;
 
-  bool findRemoteComponents( temoto_component_manager::LoadComponent::Request& req, std::vector<ComponentInfo>& si_ret ) const;
+  bool findRemoteComponents( temoto_component_manager::LoadComponent::Request& req, std::vector<ComponentInfo>& ci_ret ) const;
 
-  bool findRemoteComponent( const ComponentInfo& si, ComponentInfo& si_ret ) const;
+  bool findRemoteComponent( const ComponentInfo& ci, ComponentInfo& ci_ret ) const;
 
-  bool findRemoteComponent( const ComponentInfo& si ) const;
+  bool findRemoteComponent( const ComponentInfo& ci ) const;
 
-  bool addLocalComponent( const ComponentInfo& si );
+  bool addLocalComponent( const ComponentInfo& ci );
 
-  bool addRemoteComponent( const ComponentInfo& si );
+  bool addRemoteComponent( const ComponentInfo& ci );
 
-  bool updateLocalComponent(const ComponentInfo& si, bool advertised = false);
+  bool updateLocalComponent(const ComponentInfo& ci, bool advertised = false);
 
-  bool updateRemoteComponent(const ComponentInfo& si, bool advertised = false);
+  bool updateRemoteComponent(const ComponentInfo& ci, bool advertised = false);
 
   const std::vector<ComponentInfo>& getLocalComponents() const;
 
@@ -76,10 +76,21 @@ public:
 
   bool updatePipe( const PipeInfo& pi );
 
-  void registerUpdateCallback( std::function<void(int)> update_callback)
-  {
-    update_callback_ = update_callback;
-  }
+  /**
+   * @brief Adds an external callback function that will be invoked if a component gets added or updated 
+   * 
+   * @param cir_update_callback 
+   */
+  void registerUpdateCallback( std::function<void(ComponentInfo)> cir_update_callback);
+
+  /**
+   * @brief Calls all registered cir update callbacks
+   * 
+   * @param ci Copy of the added/updated component 
+   * @return true if all callbacks were invoked successfully
+   * @return false if a callback failed
+   */
+  bool callUpdateCallbacks(ComponentInfo ci);
 
 private:
 
@@ -99,26 +110,26 @@ private:
    * 
    * @param req Requested component
    * @param components Vector of known components
-   * @param si_ret Vector of found components
+   * @param ci_ret Vector of found components
    * @return true Found component(s)
    * @return false Did not find any components
    */
   bool findComponents( temoto_component_manager::LoadComponent::Request& req
                      , const std::vector<ComponentInfo>& components
-                     , std::vector<ComponentInfo>& si_ret ) const;
+                     , std::vector<ComponentInfo>& ci_ret ) const;
 
   /**
    * @brief Returns one component that matches the requested criteria the most
    * 
-   * @param si Requested component
+   * @param ci Requested component
    * @param components Vector of known components
-   * @param si_ret Found component
+   * @param ci_ret Found component
    * @return true If found a component
    * @return false if component was not found
    */
-  bool findComponent( const ComponentInfo& si
+  bool findComponent( const ComponentInfo& ci
                     , const std::vector<ComponentInfo>& components
-                    , ComponentInfo& si_ret ) const;
+                    , ComponentInfo& ci_ret ) const;
 
   /**
    * @brief 
@@ -130,7 +141,7 @@ private:
   PipeInfo* findPipe ( const PipeInfo& pi );
 
   /// Update callback
-  std::function<void(int)> update_callback_;
+  std::vector<std::function<void(ComponentInfo)>> cir_update_callbacks_;
 
   /// List of all locally defined components.
   std::vector<ComponentInfo> local_components_;
