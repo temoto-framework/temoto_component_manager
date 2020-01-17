@@ -25,7 +25,9 @@
 #include "temoto_component_manager/LoadPipe.h"
 #include "temoto_core/common/temoto_id.h"
 
+#include <vector>
 #include <mutex>
+#include <thread>
 
 namespace temoto_component_manager
 {
@@ -92,6 +94,12 @@ public:
    */
   bool callUpdateCallbacks(ComponentInfo ci);
 
+  /**
+   * @brief Destroy the Component Info Registry object
+   * 
+   */
+  ~ComponentInfoRegistry();
+
 private:
 
   /**
@@ -140,8 +148,17 @@ private:
    */
   PipeInfo* findPipe ( const PipeInfo& pi );
 
+  void updateCallbackCleanupLoop();
+
   /// Update callback
   std::vector<std::function<void(ComponentInfo)>> cir_update_callbacks_;
+
+  /// Threads where the callbacks are run
+  std::vector<std::thread> cir_update_callback_threads_;
+
+  std::thread update_callback_cleanup_thread_;
+
+  bool stop_cleanup_loop_ = false;
 
   /// List of all locally defined components.
   std::vector<ComponentInfo> local_components_;

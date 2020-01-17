@@ -23,7 +23,11 @@ namespace temoto_component_manager
 {
 using namespace temoto_core;
 
-ComponentInfoRegistry::ComponentInfoRegistry(){}
+ComponentInfoRegistry::ComponentInfoRegistry()
+{
+  // Start the component update cleanup loop thread
+  update_callback_cleanup_thread_ = std::thread(&ComponentInfoRegistry::updateCallbackCleanupLoop, this);
+}
 
 void ComponentInfoRegistry::registerUpdateCallback( std::function<void(ComponentInfo)> cir_update_callback)
 {
@@ -43,7 +47,8 @@ bool ComponentInfoRegistry::callUpdateCallbacks(ComponentInfo ci)
     }
     try
     {
-      cir_update_callback(ci);
+      cir_update_callback_threads_.emplace_back(cir_update_callback, ci);
+      // cir_update_callback(ci);
     }
     catch(const std::exception& e)
     {
@@ -57,6 +62,26 @@ bool ComponentInfoRegistry::callUpdateCallbacks(ComponentInfo ci)
     }
   }
   return all_cbs_invoked_successfully;
+}
+
+void ComponentInfoRegistry::updateCallbackCleanupLoop()
+{
+  while(!stop_cleanup_loop_ || !cir_update_callback_threads_.empty())
+  {
+    for (auto it=cir_update_callback_threads_.begin();
+         it!=cir_update_callback_threads_.end();
+         it++)
+    {
+      if (it->joinable())
+      {
+        it->join();
+        cir_update_callback_threads_.erase(it--);
+      }
+    }
+
+    // Sleep for 1 second
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  }
 }
 
 bool ComponentInfoRegistry::addLocalComponent(const ComponentInfo& ci)
@@ -583,6 +608,12 @@ bool ComponentInfoRegistry::updatePipe( const PipeInfo& pi )
 
   // Return false if no such pipe was found
   return false;
+}
+
+ComponentInfoRegistry::~ComponentInfoRegistry()
+{
+  stop_cleanup_loop_ = true;
+  update_callback_cleanup_thread_.join();
 }
 
 } // component_manager namespace
