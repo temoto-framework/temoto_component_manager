@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(temoto_component_manager)
-add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function -Wno-pedantic)
+add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function -Wno-pedantic -ggdb)
 
 find_package(catkin REQUIRED COMPONENTS
   temoto_core

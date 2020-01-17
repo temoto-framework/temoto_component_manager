@@ -39,6 +39,7 @@ public:
    */
   ComponentManager()
   : BaseSubsystem("component_manager", error::Subsystem::COMPONENT_MANAGER, __func__)
+  , cir_(this)
   , cs_(this, &cir_)
   , cms_(this, &cir_)
   {}

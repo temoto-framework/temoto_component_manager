@@ -23,7 +23,8 @@ namespace temoto_component_manager
 {
 using namespace temoto_core;
 
-ComponentInfoRegistry::ComponentInfoRegistry()
+ComponentInfoRegistry::ComponentInfoRegistry(temoto_core::BaseSubsystem* b)
+: temoto_core::BaseSubsystem(*b, __func__)
 {
   // Start the component update cleanup loop thread
   update_callback_cleanup_thread_ = std::thread(&ComponentInfoRegistry::updateCallbackCleanupLoop, this);
@@ -47,8 +48,9 @@ bool ComponentInfoRegistry::callUpdateCallbacks(ComponentInfo ci)
     }
     try
     {
+      std::lock_guard<std::recursive_mutex> guard(cir_cb_update_mutex_);
+      TEMOTO_DEBUG_STREAM("Invoking an update callback in a separate thread ...");
       cir_update_callback_threads_.emplace_back(cir_update_callback, ci);
-      // cir_update_callback(ci);
     }
     catch(const std::exception& e)
     {
@@ -66,28 +68,39 @@ bool ComponentInfoRegistry::callUpdateCallbacks(ComponentInfo ci)
 
 void ComponentInfoRegistry::updateCallbackCleanupLoop()
 {
-  while(!stop_cleanup_loop_ || !cir_update_callback_threads_.empty())
+  while(true)
   {
+    // Sleep for 1 second
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    std::lock_guard<std::recursive_mutex> guard(cir_cb_update_mutex_);
+    if (stop_cleanup_loop_ /*&& cir_update_callback_threads_.empty()*/)
+    {
+      break;
+    }
+
     for (auto it=cir_update_callback_threads_.begin();
          it!=cir_update_callback_threads_.end();
-         it++)
+         /* empty */)
     {
       if (it->joinable())
       {
+        TEMOTO_DEBUG_STREAM("An update callback has finished, joining the thread.");
         it->join();
-        cir_update_callback_threads_.erase(it--);
+        cir_update_callback_threads_.erase(it);
+      }
+      else
+      {
+        it++;
       }
     }
-
-    // Sleep for 1 second
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   }
 }
 
 bool ComponentInfoRegistry::addLocalComponent(const ComponentInfo& ci)
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   // Check if there is no such component
   ComponentInfo ci_ret;
@@ -108,7 +121,7 @@ bool ComponentInfoRegistry::addLocalComponent(const ComponentInfo& ci)
 bool ComponentInfoRegistry::addRemoteComponent(const ComponentInfo &ci)
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   // Check if there is no such component
   ComponentInfo ci_ret;
@@ -125,7 +138,7 @@ bool ComponentInfoRegistry::addRemoteComponent(const ComponentInfo &ci)
 bool ComponentInfoRegistry::updateLocalComponent(const ComponentInfo &ci, bool advertised)
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   const auto it = std::find_if( local_components_.begin()
                               , local_components_.end()
@@ -149,7 +162,7 @@ bool ComponentInfoRegistry::updateLocalComponent(const ComponentInfo &ci, bool a
 bool ComponentInfoRegistry::updateRemoteComponent(const ComponentInfo &ci, bool advertised)
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   const auto it = std::find_if( remote_components_.begin()
                               , remote_components_.end()
@@ -174,7 +187,7 @@ bool ComponentInfoRegistry::findLocalComponents( LoadComponent::Request& req
                                          , std::vector<ComponentInfo>& ci_ret ) const
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   return findComponents(req, local_components_, ci_ret);
 }
@@ -182,7 +195,7 @@ bool ComponentInfoRegistry::findLocalComponents( LoadComponent::Request& req
 bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &ci, ComponentInfo& ci_ret ) const
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   return findComponent(ci, local_components_, ci_ret);
 }
@@ -190,7 +203,7 @@ bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &ci, Compone
 bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &ci ) const
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   ComponentInfo ci_ret;
   return findComponent(ci, local_components_, ci_ret);
@@ -200,7 +213,7 @@ bool ComponentInfoRegistry::findRemoteComponents( LoadComponent::Request& req
                                           , std::vector<ComponentInfo>& ci_ret ) const
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   return findComponents(req, remote_components_, ci_ret);
 }
@@ -208,7 +221,7 @@ bool ComponentInfoRegistry::findRemoteComponents( LoadComponent::Request& req
 bool ComponentInfoRegistry::findRemoteComponent( const ComponentInfo &ci, ComponentInfo& ci_ret ) const
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   return findComponent(ci, remote_components_, ci_ret);
 }
@@ -216,7 +229,7 @@ bool ComponentInfoRegistry::findRemoteComponent( const ComponentInfo &ci, Compon
 bool ComponentInfoRegistry::findRemoteComponent( const ComponentInfo &ci ) const
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   ComponentInfo ci_ret;
   return findComponent(ci, remote_components_, ci_ret);
@@ -412,7 +425,7 @@ bool ComponentInfoRegistry::findPipes( const LoadPipe::Request& req
                                      , PipeInfos& pipes_ret) const
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex_pipe_);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex_pipe_);
 
   // Get the tracking methods of the requested category
   const auto& pipes_cat = categorized_pipes_.find(req.pipe_category);
@@ -575,7 +588,7 @@ PipeInfo* ComponentInfoRegistry::findPipe ( const PipeInfo& pi )
 bool ComponentInfoRegistry::addPipe( const PipeInfo& pi)
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex_pipe_);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex_pipe_);
 
   // Check if there is no such pipe
   PipeInfo* pi_ret = findPipe(pi);
@@ -597,7 +610,7 @@ bool ComponentInfoRegistry::addPipe( const PipeInfo& pi)
 bool ComponentInfoRegistry::updatePipe( const PipeInfo& pi )
 {
   // Lock the mutex
-  std::lock_guard<std::mutex> guard(read_write_mutex_pipe_);
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex_pipe_);
 
   PipeInfo* pi_ret = findPipe(pi);
   if (pi_ret != NULL)

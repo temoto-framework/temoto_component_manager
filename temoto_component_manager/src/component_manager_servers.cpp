@@ -76,6 +76,7 @@ void ComponentManagerServers::statusCb1(temoto_core::ResourceStatus& srv)
   // synchronizer.
   if (srv.request.status_code == trr::status_codes::FAILED)
   {
+    std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
     auto it = allocated_components_.find(srv.request.resource_id);
     if (it != allocated_components_.end())
     {
@@ -227,6 +228,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
   if (got_local_components && !prefer_remote)
   {
+    TEMOTO_DEBUG_STREAM("Found a suitable local candidate.");
     /*
      * Check if the requested component is already in use  but providing some other 
      * types of data (compared to current request) If thats the case, then set up 
@@ -239,7 +241,12 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
     if (alloc_comp_id != temoto_core::temoto_id::UNASSIGNED_ID)
     {
+      TEMOTO_DEBUG_STREAM("The given component is already in use but it is providing other data than requested."
+       "Setting up a topic relay ...");
+      
+      std::lock_guard<std::recursive_mutex> guard_aerm(allocated_ext_resources_mutex_);
       load_er_msg = allocated_ext_resources_.at(alloc_comp_id);
+      std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
       ComponentInfo& alloc_comp_info = allocated_components_.at(alloc_comp_id);
 
       try
@@ -370,6 +377,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
         ci.adjustReliability(1.0);
         cir_->updateLocalComponent(ci);
+
+        std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
+        std::lock_guard<std::recursive_mutex> guard_aerm(allocated_ext_resources_mutex_);
+
         allocated_components_.emplace(res.trr.resource_id, ci);
         allocated_ext_resources_.emplace(res.trr.resource_id, load_er_msg);
 
@@ -421,6 +432,8 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
         TEMOTO_DEBUG("Call to remote ComponentManagerServers was sucessful.");
         res = load_component_msg.response;
+
+        std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
         allocated_components_.emplace(res.trr.resource_id, ci);
       }
       catch(error::ErrorStack& error_stack)
@@ -446,6 +459,8 @@ void ComponentManagerServers::unloadComponentCb( LoadComponent::Request& req
   // Suppress "unused parameter" compiler warnings
   (void)req;
   (void)res;
+  std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
+  std::lock_guard<std::recursive_mutex> guard_aerm(allocated_ext_resources_mutex_);
 
   TEMOTO_DEBUG("received a request to stop component with id '%ld'", res.trr.resource_id);
   allocated_components_.erase(res.trr.resource_id);
@@ -745,6 +760,7 @@ void ComponentManagerServers::processParameters( std::vector<diagnostic_msgs::Ke
 
 temoto_core::temoto_id::ID ComponentManagerServers::checkIfInUse( const std::vector<ComponentInfo>& cis_to_check) const
 {
+  std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
   for (const ComponentInfo& ci : cis_to_check)
   {
     for (auto const& ac : allocated_components_)
@@ -769,7 +785,14 @@ void ComponentManagerServers::cirUpdateCallback(ComponentInfo component)
 {
   TEMOTO_DEBUG_STREAM("A component was added or updated ...");
 
-  for (const auto allocated_component : allocated_components_)
+  // make a copy of the allocated_components so that it will not be corrupted by other threads
+  std::map<temoto_core::temoto_id::ID, ComponentInfo> allocated_components_cpy;
+  {
+    std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
+    allocated_components_cpy = allocated_components_;
+  }
+
+  for (const auto allocated_component : allocated_components_cpy)
   {
     if (component.getType() != allocated_component.second.getType())
     {
@@ -786,6 +809,7 @@ void ComponentManagerServers::cirUpdateCallback(ComponentInfo component)
     status_message.request.message = "A component that is currently loaded got a more reliable alternative component";
     resource_registrar_1_.sendStatus(status_message);
   }
+  TEMOTO_DEBUG_STREAM("CIR update routine finished.");
 }
 
 }  // component_manager namespace

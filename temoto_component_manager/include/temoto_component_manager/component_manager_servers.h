@@ -26,6 +26,7 @@
 #include "temoto_component_manager/component_manager_services.h"
 #include "temoto_er_manager/temoto_er_manager_services.h"
 #include "std_msgs/String.h"
+#include <mutex>
 
 namespace temoto_component_manager
 {
@@ -164,10 +165,14 @@ private:
    * TODO: A DATA STRUCTURE THAT IS A TEMPORARY HACK UNTIL RMP IS IMPROVED
    */
   std::map<int, std::pair<PipeInfo, std::vector<int>>>  allocated_pipes_hack_;
+  mutable std::recursive_mutex allocated_pipes_mutex_;
 
   /// List of allocated components
   std::map<temoto_core::temoto_id::ID, ComponentInfo> allocated_components_;
+  mutable std::recursive_mutex allocated_components_mutex_;
+
   std::map<temoto_core::temoto_id::ID, temoto_er_manager::LoadExtResource> allocated_ext_resources_;
+  mutable std::recursive_mutex allocated_ext_resources_mutex_;
 
 }; // ComponentManagerServers
 

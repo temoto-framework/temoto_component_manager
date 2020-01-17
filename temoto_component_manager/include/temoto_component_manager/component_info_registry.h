@@ -19,6 +19,7 @@
 #ifndef TEMOTO_COMPONENT_MANAGER__COMPONENT_INFO_REGISTRY_H
 #define TEMOTO_COMPONENT_MANAGER__COMPONENT_INFO_REGISTRY_H
 
+#include "temoto_core/common/base_subsystem.h"
 #include "temoto_component_manager/component_info.h"
 #include "temoto_component_manager/pipe_info.h"
 #include "temoto_component_manager/LoadComponent.h"
@@ -35,7 +36,7 @@ namespace temoto_component_manager
 /**
  * @brief Class that maintains and handles the component info objects
  */
-class ComponentInfoRegistry
+class ComponentInfoRegistry : public temoto_core::BaseSubsystem
 {
 public:
 
@@ -44,7 +45,7 @@ public:
     std::vector<ComponentInfoPtr>& components;
   };
 
-  ComponentInfoRegistry();
+  ComponentInfoRegistry(temoto_core::BaseSubsystem* b);
 
   bool findLocalComponents( temoto_component_manager::LoadComponent::Request& req, std::vector<ComponentInfo>& ci_ret ) const;
 
@@ -156,6 +157,8 @@ private:
   /// Threads where the callbacks are run
   std::vector<std::thread> cir_update_callback_threads_;
 
+  mutable std::recursive_mutex cir_cb_update_mutex_;
+
   std::thread update_callback_cleanup_thread_;
 
   bool stop_cleanup_loop_ = false;
@@ -173,10 +176,10 @@ private:
   temoto_core::temoto_id::IDManager pipe_info_id_manager_;
 
   /// Mutex for protecting component info vectors from data races
-  mutable std::mutex read_write_mutex;
+  mutable std::recursive_mutex read_write_mutex;
 
   /// Mutex for protecting pipe info vectors from data races
-  mutable std::mutex read_write_mutex_pipe_;
+  mutable std::recursive_mutex read_write_mutex_pipe_;
 };
 
 } // component_manager namespace
