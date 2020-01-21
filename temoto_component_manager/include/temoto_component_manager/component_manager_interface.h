@@ -295,22 +295,56 @@ public:
     load_pipe_msg.request.pipe_segment_specifiers = segment_specifiers;
     load_pipe_msg.request.use_only_local_segments = use_only_local_segments;
 
+    return startPipe(load_pipe_msg);
+  }
+
+  temoto_core::TopicContainer startPipe(LoadPipe& load_pipe_msg)
+  {
+    TEMOTO_DEBUG_STREAM("Loading a pipe of type '" << load_pipe_msg.request.pipe_category << "' ...");
     try
     {
-      resource_registrar_->template call<LoadPipe>(srv_name::MANAGER_2,
-                                                 srv_name::PIPE_SERVER,
-                                                 load_pipe_msg);
+      resource_registrar_->template call<LoadPipe>(srv_name::MANAGER_2
+      , srv_name::PIPE_SERVER
+      , load_pipe_msg);
       allocated_pipes_.push_back(load_pipe_msg);
+
+      temoto_core::TopicContainer topics_to_return;
+      topics_to_return.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
+      return topics_to_return;
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      throw FORWARD_ERROR(error_stack);
+    }
+  }
+
+  void reloadPipe( std::string pipe_category
+    , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
+    , bool use_only_local_segments = false)
+  {
+    TEMOTO_DEBUG_STREAM("Reloading a pipe of type '" << pipe_category << "' ...");
+    try
+    {
+      validateInterface();
     }
     catch (temoto_core::error::ErrorStack& error_stack)
     {
       throw FORWARD_ERROR(error_stack);
     }
 
-    temoto_core::TopicContainer topics_to_return;
-    topics_to_return.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
+    LoadPipe load_pipe_msg;
+    if (!findPipe(load_pipe_msg, pipe_category, segment_specifiers, use_only_local_segments))
+    {
+      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL,
+        "Unable to reload a resource that is not loaded.");
+    }
 
-    return topics_to_return;
+    // Stop the pipe
+    stopPipe(pipe_category, segment_specifiers, use_only_local_segments);
+
+    // Reload the pipe
+    load_pipe_msg.request.pipe_id = load_pipe_msg.response.pipe_id;
+    startPipe(load_pipe_msg);
   }
 
   /**
@@ -319,12 +353,12 @@ public:
    * @param pipe_category 
    * @param segment_specifiers 
    * @param use_only_local_segments 
-   * @return temoto_core::TopicContainer 
    */
-  temoto_core::TopicContainer stopPipe( std::string pipe_category
-    , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
-    , bool use_only_local_segments = false)
+  void stopPipe(std::string pipe_category
+  , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
+  , bool use_only_local_segments = false)
   {
+    TEMOTO_DEBUG_STREAM("Unloading a pipe of type '" << pipe_category << "' ...");
     try
     {
       validateInterface();
@@ -349,8 +383,8 @@ public:
 
     if (found_pipe_it == allocated_pipes_.end())
     {
-      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL, "Unable to unload resource that is not "
-                                                            "loaded.");
+      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL
+      , "Unable to unload resource that is not loaded.");
     }
 
     try
@@ -363,6 +397,8 @@ public:
     {
       throw FORWARD_ERROR(error_stack);
     }
+
+    return;
   }
 
   /**
@@ -395,6 +431,16 @@ public:
     pipe_status_callback_ = callback;
   }
 
+  /**
+   * @brief Registers a custom update routine
+   * 
+   * @param callback 
+   */
+  void registerPipeUpdateCallback( void (ParentSubsystem::*callback )(const LoadPipe&))
+  {
+    pipe_update_callback_ = callback;
+  }
+
   ~ComponentManagerInterface()
   {
   }
@@ -411,6 +457,7 @@ private:
   void(ParentSubsystem::*component_status_callback_)(const LoadComponent&) = NULL;
   void(ParentSubsystem::*component_update_callback_)(const LoadComponent&) = NULL;
   void(ParentSubsystem::*pipe_status_callback_)(const LoadPipe&) = NULL;
+  void(ParentSubsystem::*pipe_update_callback_)(const LoadPipe&) = NULL;
 
   std::unique_ptr<temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>> resource_registrar_;
   ParentSubsystem* parent_subsystem_pointer_;
@@ -437,40 +484,37 @@ private:
     {
       validateInterface();
 
-      TEMOTO_INFO_STREAM("status info was received");
-      TEMOTO_INFO_STREAM(srv.request);
+      TEMOTO_DEBUG_STREAM("status info was received");
+      TEMOTO_DEBUG_STREAM(srv.request);
 
       /*
-      * If the status message indicates a resource failure, then find out what was
-      * the exact resource and execute a recovery behaviour
-      */
-      if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
+       * Check if the resource that failed was a component
+       */
+      auto component_it = std::find_if(
+        allocated_components_.begin(),
+        allocated_components_.end(),
+        [&](const temoto_component_manager::LoadComponent& comp) -> bool {
+          return comp.response.trr.resource_id == srv.request.resource_id;
+        });
+
+      if (component_it != allocated_components_.end())
       {
-        TEMOTO_WARN("The status info reported a resource failure.");
-
-        /*
-        * Check if the resource that failed was a component
-        */
-        auto component_it = std::find_if(
-          allocated_components_.begin(),
-          allocated_components_.end(),
-          [&](const temoto_component_manager::LoadComponent& comp) -> bool {
-            return comp.response.trr.resource_id == srv.request.resource_id;
-          });
-
-        if (component_it != allocated_components_.end())
+        if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
         {
+          TEMOTO_WARN("The status info reported a resource failure.");
+
           TEMOTO_WARN_STREAM("Sending a request to unload the failed component ...");
           resource_registrar_->unloadClientResource(component_it->response.trr.resource_id);
           
           /*
-           * Check if the owner parent_subsystem has a status routine defined
-           */
+            * Check if the owner parent_subsystem has a status routine defined
+            */
           if (component_status_callback_)
           {
-            TEMOTO_WARN_STREAM("Executing a custom recovery behaviour defined in parent_subsystem '" 
+            TEMOTO_WARN_STREAM("Executing a custom component recovery behaviour defined in parent_subsystem '" 
               << parent_subsystem_pointer_->class_name_ << "'.");
-            (parent_subsystem_pointer_->*component_status_callback_)(*component_it);
+            LoadComponent load_component_msg_cpy = *component_it;
+            (parent_subsystem_pointer_->*component_status_callback_)(load_component_msg_cpy);
             return;
           }
           else
@@ -486,30 +530,45 @@ private:
           }
           return;
         }
-        
-        /*
-        * Check if the resource that failed was a pipe
-        */
-        auto pipe_it = std::find_if(
-          allocated_pipes_.begin(), 
-          allocated_pipes_.end(),
-          [&](const LoadPipe& pipe) -> bool {
-            return pipe.response.trr.resource_id == srv.request.resource_id;
-          });
+        else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
+        {
+          if (component_update_callback_)
+          {
+            TEMOTO_DEBUG_STREAM("Executing a custom component update behaviour defined in parent_subsystem '" 
+            << parent_subsystem_pointer_->class_name_ << "'.");
+            LoadComponent load_component_msg_cpy = *component_it;
+            (parent_subsystem_pointer_->*component_update_callback_)(load_component_msg_cpy);
+          }
+          return;
+        }
+      }
+      
+      /*
+       * Check if the resource that failed was a pipe
+       */
+      auto pipe_it = std::find_if(
+        allocated_pipes_.begin(), 
+        allocated_pipes_.end(),
+        [&](const LoadPipe& pipe) -> bool {
+          return pipe.response.trr.resource_id == srv.request.resource_id;
+        });
 
-        if (pipe_it != allocated_pipes_.end())
+      if (pipe_it != allocated_pipes_.end())
+      {
+        if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
         {
           TEMOTO_WARN("Sending a request to unload the failed pipe ...");
           resource_registrar_->unloadClientResource(pipe_it->response.trr.resource_id);
 
           /*
-           * Check if the owner parent_subsystem has a status routine defined
-           */
+          * Check if the owner parent_subsystem has a status routine defined
+          */
           if (pipe_status_callback_)
           {
-            TEMOTO_WARN_STREAM("Executing a custom recovery behaviour defined in parent_subsystem '" 
+            TEMOTO_WARN_STREAM("Executing a custom pipe recovery behaviour defined in parent_subsystem '" 
               << parent_subsystem_pointer_->class_name_ << "'.");
-            (parent_subsystem_pointer_->*pipe_status_callback_)(*pipe_it);
+            LoadPipe load_pipe_msg_cpy = *pipe_it;
+            (parent_subsystem_pointer_->*pipe_status_callback_)(load_pipe_msg_cpy);
             return;
           }
           else
@@ -528,37 +587,56 @@ private:
           }
           return;
         }
-
-        TEMOTO_ERROR_STREAM("Resource status arrived for a resource that does not exist.");
-        // throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
-        //                    "resource that does not exist.");
-      }
-      else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
-      {
-        TEMOTO_DEBUG_STREAM(srv.request.message);
-
-        auto component_it = std::find_if(
-          allocated_components_.begin(),
-          allocated_components_.end(),
-          [&](const temoto_component_manager::LoadComponent& comp) -> bool {
-            return comp.response.trr.resource_id == srv.request.resource_id;
-          });
-
-        if (component_it == allocated_components_.end())
+        else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
         {
-          TEMOTO_ERROR_STREAM("Resource status arrived for a resource that does not exist.");
+          if (pipe_update_callback_)
+          {
+            TEMOTO_DEBUG_STREAM("Executing a custom pipe update behaviour defined in parent_subsystem '" 
+            << parent_subsystem_pointer_->class_name_ << "'.");
+            LoadPipe load_pipe_msg_cpy = *pipe_it;
+            (parent_subsystem_pointer_->*pipe_update_callback_)(load_pipe_msg_cpy);
+          }
           return;
         }
-        TEMOTO_DEBUG_STREAM("Executing a custom update behaviour defined in parent_subsystem '" 
-          << parent_subsystem_pointer_->class_name_ << "'.");
-          (parent_subsystem_pointer_->*component_update_callback_)(*component_it);
-        return;
       }
-      
+
+      TEMOTO_ERROR_STREAM("Resource status arrived for a resource that does not exist.");
+      // throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
+      //                    "resource that does not exist.");
+
     }
     catch (temoto_core::error::ErrorStack& error_stack)
     {
       throw FORWARD_ERROR(error_stack);
+    }
+  }
+
+  bool findPipe(LoadPipe& lp_return_msg
+  , const std::string& pipe_category
+  , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
+  , bool use_only_local_segments = false) const
+  {
+    // Find all instances where request part matches of what was given and unload each resource
+    LoadPipe load_pipe_msg;
+    load_pipe_msg.request.pipe_category = pipe_category;
+    load_pipe_msg.request.pipe_segment_specifiers = segment_specifiers;
+    load_pipe_msg.request.use_only_local_segments = use_only_local_segments;
+
+    // The == operator used in the lambda function is defined in
+    // component manager services header
+    auto found_pipe_it = std::find_if(
+      allocated_pipes_.begin(),
+      allocated_pipes_.end(),
+      [&](const LoadPipe& srv_msg) -> bool{ return srv_msg.request == load_pipe_msg.request; });
+
+    if (found_pipe_it != allocated_pipes_.end())
+    {
+      lp_return_msg = *found_pipe_it;
+      return true;
+    }
+    else
+    {
+      return false;
     }
   }
 };

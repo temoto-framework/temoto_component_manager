@@ -164,7 +164,8 @@ private:
   /*
    * TODO: A DATA STRUCTURE THAT IS A TEMPORARY HACK UNTIL RMP IS IMPROVED
    */
-  std::map<int, std::pair<PipeInfo, std::vector<int>>>  allocated_pipes_hack_;
+  typedef std::map<temoto_core::temoto_id::ID, std::pair<PipeInfo, std::vector<int>>> AllocatedPipes;
+  AllocatedPipes allocated_pipes_hack_;
   mutable std::recursive_mutex allocated_pipes_mutex_;
 
   /// List of allocated components

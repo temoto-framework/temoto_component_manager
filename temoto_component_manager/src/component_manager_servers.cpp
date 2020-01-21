@@ -124,7 +124,7 @@ void ComponentManagerServers::statusCb2(temoto_core::ResourceStatus& srv)
 
     if (it != allocated_pipes_hack_.end())
     {
-      TEMOTO_INFO("Tracker of type '%s' (pipe size: %d) has stopped working",
+      TEMOTO_INFO("Pipe of type '%s' (pipe size: %d) has stopped working",
                    it->second.first.getType().c_str(),
                    it->second.first.getPipeSize());
 
@@ -132,6 +132,12 @@ void ComponentManagerServers::statusCb2(temoto_core::ResourceStatus& srv)
       it->second.first.reliability_.adjustReliability(0);
       cir_->updatePipe(it->second.first);
     }
+  }
+  else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
+  {
+    /*
+     * Everything is handled by Resource Registrar
+     */ 
   }
 }
 
@@ -504,6 +510,8 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
                 + "_at_" + temoto_core::common::getTemotoNamespace();
       }
 
+      res.pipe_id = pipe_id;
+
       /*
        * Build the pipe based on the number of segments. If the pipe
        * contains only one segment, then there are no constraints on
@@ -721,7 +729,7 @@ void ComponentManagerServers::processParameters( std::vector<diagnostic_msgs::Ke
   isLaunchFile = std::regex_match(component_info.getExecutable(), rx);
   std::vector<StringPair> component_info_parameters = component_info.getRequiredParameters();
 
-  // If no parameters were requested, then return a list of all parameters this component accepts
+  // If no parameters were requested, then set the default value for the parameter
   if (req_parameters.empty())
   {
     for (const auto& parameter : component_info_parameters)
@@ -730,6 +738,9 @@ void ComponentManagerServers::processParameters( std::vector<diagnostic_msgs::Ke
       parameter_msg.key = parameter.first;
       parameter_msg.value = parameter.second;
       res_parameters.push_back(parameter_msg);
+
+      std::string remap_arg = parameter_msg.key + ":=" + parameter_msg.value;
+      load_er_msg.request.args += remap_arg + " ";
     }
     return;
   }

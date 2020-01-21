@@ -105,8 +105,7 @@ static bool operator==(const temoto_component_manager::LoadComponent::Request& r
 static bool operator==(const temoto_component_manager::LoadPipe::Request& r1,
                        const temoto_component_manager::LoadPipe::Request& r2)
 {
-  if ( (r1.pipe_category != r2.pipe_category) ||
-       (r1.detection_method != r2.detection_method))
+  if (r1.pipe_category != r2.pipe_category)
   {
     return false;
   }
