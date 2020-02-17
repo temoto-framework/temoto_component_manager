@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(temoto_component_manager)
-add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function -Wno-pedantic -ggdb)
+add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function -Wno-pedantic -ggdb -Denable_tracing)
 
 find_package(catkin REQUIRED COMPONENTS
   temoto_core
@@ -37,7 +37,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES yaml-cpp
+  #LIBRARIES yaml-cpp
   CATKIN_DEPENDS roscpp std_msgs diagnostic_msgs temoto_core temoto_action_engine temoto_er_manager
   DEPENDS 
 )
@@ -63,7 +63,7 @@ add_dependencies(temoto_component_manager
 
 target_link_libraries(temoto_component_manager
   ${catkin_LIBRARIES} 
-  yaml-cpp 
+  #yaml-cpp
 )
 
 install(TARGETS temoto_component_manager
