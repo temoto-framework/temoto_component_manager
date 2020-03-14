@@ -19,7 +19,7 @@
 #ifndef TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_YAML_H
 #define TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_YAML_H
 
-#include <yaml-cpp/yaml.h>
+#include "yaml-cpp/yaml.h"
 #include "temoto_component_manager/component_info.h"
 
 namespace temoto_component_manager

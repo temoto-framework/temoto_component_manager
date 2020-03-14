@@ -26,7 +26,7 @@
 #include "temoto_component_manager/component_info_registry.h"
 
 #include <boost/filesystem/operations.hpp>
-#include <yaml-cpp/yaml.h>
+#include "yaml-cpp/yaml.h"
 #include <fstream>
 
 /* 

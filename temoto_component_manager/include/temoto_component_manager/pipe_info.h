@@ -28,7 +28,7 @@
 #include <set>
 #include <ctype.h>
 #include <memory>                     // shared_ptr
-#include <yaml-cpp/yaml.h>
+#include "yaml-cpp/yaml.h"
 #include <iostream>                   // TODO: remove
 
 namespace temoto_component_manager

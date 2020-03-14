@@ -18,10 +18,9 @@
 
 #include "temoto_component_manager/component_snooper.h"
 #include "temoto_component_manager/component_manager_services.h"
-#include "temoto_component_manager/component_manager_yaml.h"
 
 #include "ros/package.h"
-#include <yaml-cpp/yaml.h>
+#include "yaml-cpp/yaml.h"
 
 
 namespace temoto_component_manager

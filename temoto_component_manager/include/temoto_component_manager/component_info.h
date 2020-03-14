@@ -27,7 +27,7 @@
 #include <map>
 #include <ctype.h>
 #include <memory> // shared_ptr
-#include <yaml-cpp/yaml.h>
+#include "yaml-cpp/yaml.h"
 
 namespace temoto_component_manager
 {
