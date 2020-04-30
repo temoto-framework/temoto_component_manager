@@ -116,7 +116,7 @@ void sleepAndCheckOk(float time)
  * @param path
  * @return
  */
-std::vector<std::string> findComponentDescFiles( const boost::filesystem::path& base_path, int search_depth = 3)
+std::vector<std::string> findComponentDescFiles( const boost::filesystem::path& base_path, int search_depth = 4)
 {
   boost::filesystem::directory_iterator end_itr;
   std::vector <std::string> desc_file_paths;

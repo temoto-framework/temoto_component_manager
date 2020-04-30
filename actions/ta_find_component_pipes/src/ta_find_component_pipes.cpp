@@ -101,7 +101,7 @@ void executeTemotoAction()
  * @return
  */
 std::vector<std::string> findPipeDescFiles( const boost::filesystem::path& base_path
-                                               , int search_depth = 3)
+                                               , int search_depth = 4)
 {
   boost::filesystem::directory_iterator end_itr;
   std::vector <std::string> desc_file_paths;
