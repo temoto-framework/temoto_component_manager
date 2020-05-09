@@ -177,7 +177,8 @@ public:
                                    , const std::string& ros_program_name
                                    , const ComponentTopicsReq& topics
                                    , const ComponentTopicsReq& parameters
-                                   , bool use_only_local_components = false)
+                                   , bool use_only_local_components = false
+                                   , std::string temoto_namespace = "")
   {
     // Fill out the "StartComponentRequest" request
     temoto_component_manager::LoadComponent srv_msg;
@@ -189,12 +190,26 @@ public:
     srv_msg.request.input_topics = topics.inputTopicsAsKeyValues();
     srv_msg.request.required_parameters = parameters.outputTopicsAsKeyValues();
 
+    return startComponent(srv_msg, temoto_namespace)
+  }
+
+  ComponentTopicsRes startComponent( temoto_component_manager::LoadComponent& load_component_srv_msg
+                                   , std::string temoto_namespace = "")
+  {
+    if(temoto_namespace.empty)
+    {
+      temoto_namespace = temoto_core::common::getTemotoNamespace();
+    }
+
     // Call the server    
     try
     {
-      resource_registrar_->template call<LoadComponent>(srv_name::MANAGER,
-                                                      srv_name::SERVER,
-                                                      srv_msg);
+      resource_registrar_->template call<LoadComponent>(
+        srv_name::MANAGER
+      , srv_name::SERVER,
+      , load_component_srv_msg
+      , trr::FailureBehavior::NONE
+      , temoto_namespace);
     }
     catch(temoto_core::error::ErrorStack& error_stack)
     {
