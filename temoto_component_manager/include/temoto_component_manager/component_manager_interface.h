@@ -190,7 +190,7 @@ public:
     srv_msg.request.input_topics = topics.inputTopicsAsKeyValues();
     srv_msg.request.required_parameters = parameters.outputTopicsAsKeyValues();
 
-    return startComponent(srv_msg, temoto_namespace)
+    return startComponent(srv_msg, temoto_namespace);
   }
 
   ComponentTopicsRes startComponent( temoto_component_manager::LoadComponent& load_component_srv_msg
@@ -204,21 +204,20 @@ public:
     // Call the server    
     try
     {
-      resource_registrar_->template call<LoadComponent>(
-        srv_name::MANAGER
-      , srv_name::SERVER,
-      , load_component_srv_msg
-      , trr::FailureBehavior::NONE
-      , temoto_namespace);
+      resource_registrar_->template call<LoadComponent>( srv_name::MANAGER
+                                                       , srv_name::SERVER
+                                                       , load_component_srv_msg
+                                                       , temoto_core::trr::FailureBehavior::NONE
+                                                       , temoto_namespace);
     }
     catch(temoto_core::error::ErrorStack& error_stack)
     {
       throw FORWARD_ERROR(error_stack);
     }
 
-    allocated_components_.push_back(srv_msg);
+    allocated_components_.push_back(load_component_srv_msg);
     ComponentTopicsRes responded_topics;
-    responded_topics.setOutputTopicsByKeyValue( srv_msg.response.output_topics );
+    responded_topics.setOutputTopicsByKeyValue(load_component_srv_msg.response.output_topics);
 
     return responded_topics;
   }
