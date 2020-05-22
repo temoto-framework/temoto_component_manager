@@ -196,7 +196,7 @@ public:
   ComponentTopicsRes startComponent( temoto_component_manager::LoadComponent& load_component_srv_msg
                                    , std::string temoto_namespace = "")
   {
-    if(temoto_namespace.empty)
+    if(temoto_namespace.empty())
     {
       temoto_namespace = temoto_core::common::getTemotoNamespace();
     }
