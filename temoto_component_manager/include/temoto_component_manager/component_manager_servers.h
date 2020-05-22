@@ -169,7 +169,8 @@ private:
   mutable std::recursive_mutex allocated_pipes_mutex_;
 
   /// List of allocated components
-  std::map<temoto_core::temoto_id::ID, ComponentInfo> allocated_components_;
+  typedef std::pair<ComponentInfo, LoadComponent::Response> ComponentInfoResponse;
+  std::map<temoto_core::temoto_id::ID, ComponentInfoResponse> allocated_components_;
   mutable std::recursive_mutex allocated_components_mutex_;
 
   std::map<temoto_core::temoto_id::ID, temoto_er_manager::LoadExtResource> allocated_ext_resources_;
