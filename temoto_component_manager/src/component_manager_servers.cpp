@@ -381,7 +381,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
         resource_registrar_1_.call<temoto_er_manager::LoadExtResource>(
           temoto_er_manager::srv_name::MANAGER
         , temoto_er_manager::srv_name::SERVER
-        , 
+        , load_er_msg
         , trr::FailureBehavior::NONE);
 
         TEMOTO_DEBUG("Call to ProcessManager was sucessful.");
