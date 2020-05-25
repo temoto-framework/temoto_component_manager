@@ -326,11 +326,13 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             load_er_msg_remapper.request.package_name = "topic_tools";
             load_er_msg_remapper.request.executable = "relay";
             load_er_msg_remapper.request.args = alloc_comp_response_container.getOutputTopic(output_topic.key) + " " + output_topic.value;
+            TEMOTO_ERROR_STREAM("key: " << output_topic.key << ". args: " << load_er_msg_remapper.request.args);
 
-            resource_registrar_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
-                                                      , temoto_er_manager::srv_name::SERVER
-                                                      , load_er_msg_remapper
-                                                      , trr::FailureBehavior::NONE);
+            resource_registrar_1_.call<temoto_er_manager::LoadExtResource>(
+              temoto_er_manager::srv_name::MANAGER
+            , temoto_er_manager::srv_name::SERVER
+            , load_er_msg_remapper
+            , trr::FailureBehavior::NONE);
 
             res.output_topics.push_back(output_topic);
           }
@@ -369,17 +371,18 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
       processParameters(req.required_parameters, res.required_parameters, load_er_msg, ci);
             
       TEMOTO_DEBUG( "Found a suitable local component: '%s', '%s', '%s', reliability %.3f"
-                 , load_er_msg.request.action.c_str()
-                 , load_er_msg.request.package_name.c_str()
-                 , load_er_msg.request.executable.c_str()
-                 , ci.getReliability());
+      , load_er_msg.request.action.c_str()
+      , load_er_msg.request.package_name.c_str()
+      , load_er_msg.request.executable.c_str()
+      , ci.getReliability());
 
       try
       {
-        resource_registrar_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
-                                                                    , temoto_er_manager::srv_name::SERVER
-                                                                    , load_er_msg
-                                                                    , trr::FailureBehavior::NONE);
+        resource_registrar_1_.call<temoto_er_manager::LoadExtResource>(
+          temoto_er_manager::srv_name::MANAGER
+        , temoto_er_manager::srv_name::SERVER
+        , 
+        , trr::FailureBehavior::NONE);
 
         TEMOTO_DEBUG("Call to ProcessManager was sucessful.");
 
@@ -660,43 +663,44 @@ void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyVal
     component_info_topics = component_info.getOutputTopics();
   }
 
+  // First fill out the response message with the default topic names
+  for (const auto& topic : component_info_topics)
+  {
+    diagnostic_msgs::KeyValue topic_msg;
+    topic_msg.key = topic.first;
+    topic_msg.value = common::getAbsolutePath(topic.second);
+    res_topics.push_back(topic_msg);
+  }
+
   // If no topics were requested, then return a list of all topics this component publishes
   if (req_topics.empty())
   {
-    for (const auto& topic : component_info_topics)
-    {
-      diagnostic_msgs::KeyValue topic_msg;
-      topic_msg.key = topic.first;
-      topic_msg.value = common::getAbsolutePath(topic.second);
-      res_topics.push_back(topic_msg);
-    }
     return; 
   }
 
   // Remap the input topics if requested
   for (auto& req_topic : req_topics)
   {
-    // And return the input topics via response
-    diagnostic_msgs::KeyValue res_topic;
-    res_topic.key = req_topic.key;
-    std::string default_topic;
+    // Find the topic from the filled out response message
+    auto res_topic = std::find_if(res_topics.begin(), res_topics.end(),
+      [req_topic](const auto rt)
+      {
+        if (req_topic.key == rt.key)
+        {
+          return true;
+        }
+        else
+        {
+          return false;
+        }
+      });
 
-    if (direction == "in")
+    if (!req_topic.value.empty())
     {
-      default_topic = component_info.getInputTopic(req_topic.key);
-    }
-    else if (direction == "out")
-    {
-      default_topic = component_info.getOutputTopic(req_topic.key);
-    }
-
-    if (req_topic.value != "")
-    {
-      res_topic.value = common::getAbsolutePath(req_topic.value);
-
+      std::string default_topic = res_topic->value;
+      res_topic->value = common::getAbsolutePath(req_topic.value);
       // Remap depending wether it is a launch file or excutable
       std::string remap_arg;
-
       if (isLaunchFile)
       {
         remap_arg = req_topic.key + ":=" + req_topic.value;
@@ -708,13 +712,6 @@ void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyVal
 
       load_er_msg.request.args += remap_arg + " ";
     }
-    else
-    {
-      res_topic.value = common::getAbsolutePath(default_topic);
-    }
-
-    // Add the topic to the response message
-    res_topics.push_back(res_topic);
   }
 }
 
