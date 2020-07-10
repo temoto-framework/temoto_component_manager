@@ -82,7 +82,7 @@ void ComponentSnooper::startSnooping()
     {
       Umrf find_components_umrf;
       find_components_umrf.setName("TaFindComponentPackages");
-      find_components_umrf.setSuffix("0");
+      find_components_umrf.setSuffix(0);
       find_components_umrf.setEffect("synchronous");
 
       ActionParameters ap;
@@ -97,7 +97,7 @@ void ComponentSnooper::startSnooping()
     {
       Umrf find_pipes_umrf;
       find_pipes_umrf.setName("TaFindComponentPipes");
-      find_pipes_umrf.setSuffix("0");
+      find_pipes_umrf.setSuffix(0);
       find_pipes_umrf.setEffect("synchronous");
 
       ActionParameters ap;
