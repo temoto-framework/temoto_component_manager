@@ -528,7 +528,7 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
        * then each preceding segment has to provide the topics that are
        * required by the proceding segment
        */
-      temoto_core::TopicContainer required_topics;
+      temoto_core::TopicContainer previous_segment_topics;
 
       // Loop over the pipe
       const std::vector<Segment>& segments = pipe.getSegments();
@@ -542,11 +542,15 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
         temoto_component_manager::LoadComponent load_component_msg;
         load_component_msg.request.use_only_local_components = req.use_only_local_segments;
         load_component_msg.request.component_type = segments.at(i).segment_type_;
+        temoto_core::TopicContainer required_topics;
 
-        // Clear out the required output topics
-        required_topics.clearOutputTopics();
+        // Set the input topics
+        for (const auto& topic_type : segments.at(i).required_input_topic_types_)
+        {
+          required_topics.addInputTopic(topic_type, previous_segment_topics.getOutputTopic(topic_type)); 
+        }
 
-        // If it is not the last segment then ...
+        // Set the output topics. If it is not the last segment then ...
         if (i != segments.size()-1)
         {
           // ... get the requirements for the output topic types from the proceding segment
@@ -587,11 +591,12 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
         // TODO: REMOVE AFTER RMP HAS THIS FUNCTIONALITY
         sub_resource_ids.push_back(load_component_msg.response.trr.resource_id);
 
-        required_topics.setInputTopicsByKeyValue(load_component_msg.response.output_topics);
+        previous_segment_topics.setInputTopicsByKeyValue(load_component_msg.response.input_topics);
+        previous_segment_topics.setOutputTopicsByKeyValue(load_component_msg.response.output_topics);
       }
 
       // Send the output topics of the last segment back via response
-      res.output_topics = required_topics.outputTopicsAsKeyValues();
+      res.output_topics = previous_segment_topics.outputTopicsAsKeyValues();
 
       // Add the pipe to allocated pipes + increase its reliability
       pipe.reliability_.adjustReliability();
