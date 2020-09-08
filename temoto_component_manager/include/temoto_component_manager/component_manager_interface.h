@@ -196,6 +196,21 @@ public:
   ComponentTopicsRes startComponent( temoto_component_manager::LoadComponent& load_component_srv_msg
                                    , std::string temoto_namespace = "")
   {
+    #ifdef enable_tracing
+    std::unique_ptr<opentracing::Span> tracing_span;
+
+    if (resource_registrar_->statusCallbackActive())
+    {
+      TextMapCarrier carrier(resource_registrar_->getStatusCallbackSpanContext());
+      auto span_context_maybe = TRACER->Extract(carrier);
+      tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__, {opentracing::ChildOf(span_context_maybe->get())});
+    }
+    else
+    {
+      tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__);
+    }
+    #endif
+
     if(temoto_namespace.empty())
     {
       temoto_namespace = temoto_core::common::getTemotoNamespace();
@@ -204,11 +219,32 @@ public:
     // Call the server    
     try
     {
+      #ifdef enable_tracing
+      /*
+       * If tracing is enabled:
+       * Propagate the context of the span to the invoked subroutines
+       * TODO: this segment of code will crash if the tracer is uninitialized
+       */ 
+      temoto_core::StringMap local_span_context;
+      TextMapCarrier carrier(local_span_context);
+      auto err = TRACER->Inject(tracing_span->context(), carrier);
+      
       resource_registrar_->template call<LoadComponent>( srv_name::MANAGER
-                                                       , srv_name::SERVER
-                                                       , load_component_srv_msg
-                                                       , temoto_core::trr::FailureBehavior::NONE
-                                                       , temoto_namespace);
+      , srv_name::SERVER
+      , load_component_srv_msg
+      , temoto_core::trr::FailureBehavior::NONE
+      , temoto_namespace
+      , local_span_context);
+
+      #else
+      // If tracing is not enabled
+      resource_registrar_->template call<LoadComponent>( srv_name::MANAGER
+      , srv_name::SERVER
+      , load_component_srv_msg
+      , temoto_core::trr::FailureBehavior::NONE
+      , temoto_namespace);
+
+      #endif
     }
     catch(temoto_core::error::ErrorStack& error_stack)
     {
@@ -312,16 +348,59 @@ public:
     return startPipe(load_pipe_msg);
   }
 
-  temoto_core::TopicContainer startPipe(LoadPipe& load_pipe_msg)
+  temoto_core::TopicContainer startPipe(LoadPipe& load_pipe_msg, std::string temoto_namespace = "")
   {
+    #ifdef enable_tracing
+    std::unique_ptr<opentracing::Span> tracing_span;
+
+    if (resource_registrar_->statusCallbackActive())
+    {
+      TextMapCarrier carrier(resource_registrar_->getStatusCallbackSpanContext());
+      auto span_context_maybe = TRACER->Extract(carrier);
+      tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__, {opentracing::ChildOf(span_context_maybe->get())});
+    }
+    else
+    {
+      tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__);
+    }
+    #endif
+
+    if(temoto_namespace.empty())
+    {
+      temoto_namespace = temoto_core::common::getTemotoNamespace();
+    }
+
     TEMOTO_DEBUG_STREAM("Loading a pipe of type '" << load_pipe_msg.request.pipe_category << "' ...");
     try
     {
+      #ifdef enable_tracing
+      /*
+       * If tracing is enabled:
+       * Propagate the context of the span to the invoked subroutines
+       * TODO: this segment of code will crash if the tracer is uninitialized
+       */ 
+      temoto_core::StringMap local_span_context;
+      TextMapCarrier carrier(local_span_context);
+      auto err = TRACER->Inject(tracing_span->context(), carrier);
+      
+      resource_registrar_->template call<LoadComponent>( srv_name::MANAGER_2
+      , srv_name::PIPE_SERVER
+      , load_pipe_msg
+      , temoto_core::trr::FailureBehavior::NONE
+      , temoto_namespace
+      , local_span_context);
+
+      #else
+      // If tracing is not enabled
       resource_registrar_->template call<LoadPipe>(srv_name::MANAGER_2
       , srv_name::PIPE_SERVER
-      , load_pipe_msg);
-      allocated_pipes_.push_back(load_pipe_msg);
+      , load_pipe_msg
+      , temoto_core::trr::FailureBehavior::NONE
+      , temoto_namespace);
 
+      #endif
+
+      allocated_pipes_.push_back(load_pipe_msg);
       temoto_core::TopicContainer topics_to_return;
       topics_to_return.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
       return topics_to_return;
