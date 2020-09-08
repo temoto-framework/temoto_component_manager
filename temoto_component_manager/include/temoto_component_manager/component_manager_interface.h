@@ -201,7 +201,8 @@ public:
 
     if (resource_registrar_->statusCallbackActive())
     {
-      TextMapCarrier carrier(resource_registrar_->getStatusCallbackSpanContext());
+      temoto_core::StringMap parent_context = resource_registrar_->getStatusCallbackSpanContext();
+      TextMapCarrier carrier(parent_context);
       auto span_context_maybe = TRACER->Extract(carrier);
       tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__, {opentracing::ChildOf(span_context_maybe->get())});
     }
@@ -355,7 +356,8 @@ public:
 
     if (resource_registrar_->statusCallbackActive())
     {
-      TextMapCarrier carrier(resource_registrar_->getStatusCallbackSpanContext());
+      temoto_core::StringMap parent_context = resource_registrar_->getStatusCallbackSpanContext();
+      TextMapCarrier carrier(parent_context);
       auto span_context_maybe = TRACER->Extract(carrier);
       tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__, {opentracing::ChildOf(span_context_maybe->get())});
     }
@@ -383,7 +385,7 @@ public:
       TextMapCarrier carrier(local_span_context);
       auto err = TRACER->Inject(tracing_span->context(), carrier);
       
-      resource_registrar_->template call<LoadComponent>( srv_name::MANAGER_2
+      resource_registrar_->template call<LoadPipe>( srv_name::MANAGER_2
       , srv_name::PIPE_SERVER
       , load_pipe_msg
       , temoto_core::trr::FailureBehavior::NONE
