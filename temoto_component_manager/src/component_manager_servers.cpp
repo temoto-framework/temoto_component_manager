@@ -274,6 +274,8 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
                                                       , load_er_msg
                                                       , trr::FailureBehavior::NONE);
 
+        res.package_name = alloc_comp_info.getPackageName();
+        res.executable = alloc_comp_info.getExecutable();
         /*
          * Set up the topics that are returned to the client
          */
@@ -307,7 +309,13 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
           }
         }
 
-        // Output topics 
+        // Output topics
+        if (req.output_topics.empty())
+        {
+          res.output_topics = alloc_comp_response.output_topics;
+          return;
+        }
+
         for (const auto& output_topic : req.output_topics)
         {
           if (output_topic.value.empty())
@@ -326,7 +334,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             load_er_msg_remapper.request.package_name = "topic_tools";
             load_er_msg_remapper.request.executable = "relay";
             load_er_msg_remapper.request.args = alloc_comp_response_container.getOutputTopic(output_topic.key) + " " + output_topic.value;
-            TEMOTO_ERROR_STREAM("key: " << output_topic.key << ". args: " << load_er_msg_remapper.request.args);
+            TEMOTO_DEBUG_STREAM("key: " << output_topic.key << ". args: " << load_er_msg_remapper.request.args);
 
             resource_registrar_1_.call<temoto_er_manager::LoadExtResource>(
               temoto_er_manager::srv_name::MANAGER
@@ -337,10 +345,6 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             res.output_topics.push_back(output_topic);
           }
         }
-
-        res.package_name = alloc_comp_info.getPackageName();
-        res.executable = alloc_comp_info.getExecutable();
-
         return;
       }
       catch(error::ErrorStack& error_stack)
