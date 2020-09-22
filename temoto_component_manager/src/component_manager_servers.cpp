@@ -29,31 +29,35 @@ namespace temoto_component_manager
 using namespace temoto_core;
 
 ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfoRegistry *cir)
-  : BaseSubsystem(*b, __func__)
-  , cir_(cir)
-  , resource_registrar_1_(srv_name::MANAGER, this)
-  , resource_registrar_2_(srv_name::MANAGER_2, this)
+: BaseSubsystem(*b, __func__)
+, cir_(cir)
+, resource_registrar_1_(srv_name::MANAGER, this)
+, resource_registrar_2_(srv_name::MANAGER_2, this)
 {
-  // Start the component server
+  /*
+   * Set up the resource servers and register status callbacks
+   */
   resource_registrar_1_.addServer<LoadComponent>( srv_name::SERVER
-                                              , &ComponentManagerServers::loadComponentCb
-                                              , &ComponentManagerServers::unloadComponentCb);
+  , &ComponentManagerServers::loadComponentCb
+  , &ComponentManagerServers::unloadComponentCb);
 
   resource_registrar_2_.addServer<LoadPipe>( srv_name::PIPE_SERVER
-                                         , &ComponentManagerServers::loadPipeCb
-                                         , &ComponentManagerServers::unloadPipeCb);
+  , &ComponentManagerServers::loadPipeCb
+  , &ComponentManagerServers::unloadPipeCb);
 
-  // Register callback for status info
   resource_registrar_1_.registerStatusCb(&ComponentManagerServers::statusCb1);
   resource_registrar_2_.registerStatusCb(&ComponentManagerServers::statusCb2);
 
+  /*
+   * Set up simple ROS servers that do not provide any resources
+   */ 
   list_components_server_ = nh_.advertiseService( srv_name::LIST_COMPONENTS_SERVER
-                                                , &ComponentManagerServers::listComponentsCb
-                                                , this);
+  , &ComponentManagerServers::listComponentsCb
+  , this);
 
   list_pipes_server_ = nh_.advertiseService( srv_name::LIST_PIPES_SERVER
-                                           , &ComponentManagerServers::listPipesCb
-                                           , this);
+  , &ComponentManagerServers::listPipesCb
+  , this);
 
   // Register the component update callback
   cir_->registerUpdateCallback(std::bind(&ComponentManagerServers::cirUpdateCallback, this, std::placeholders::_1));                                       
@@ -78,18 +82,20 @@ void ComponentManagerServers::statusCb1(temoto_core::ResourceStatus& srv)
   {
     std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
     auto it = allocated_components_.find(srv.request.resource_id);
-    if (it != allocated_components_.end())
+    if (it == allocated_components_.end())
     {
-      if(it->second.first.isLocal())
-      {
-        TEMOTO_WARN("Local component failure detected, adjusting reliability.");
-        it->second.first.adjustReliability(0.0);
-        cir_->updateLocalComponent(it->second.first);
-      }
-      else
-      {
-        TEMOTO_WARN("Remote component failure detected, doing nothing (component will be updated via synchronizer).");
-      }
+      return;
+    }
+
+    if (it->second.first.isLocal())
+    {
+      TEMOTO_WARN("Local component failure detected, adjusting reliability.");
+      it->second.first.adjustReliability(0.0);
+      cir_->updateLocalComponent(it->second.first);
+    }
+    else
+    {
+      TEMOTO_WARN("Remote component failure detected, doing nothing (component will be updated via synchronizer).");
     }
   }
 }
@@ -110,23 +116,23 @@ void ComponentManagerServers::statusCb2(temoto_core::ResourceStatus& srv)
     int val = srv.request.resource_id;
 
     auto it = std::find_if(allocated_pipes_hack_.begin(), allocated_pipes_hack_.end(),
-              [val](const std::pair<int, std::pair<PipeInfo, std::vector<int>>>& pair_in)
-              {
-                for (const auto& client_id : pair_in.second.second)
-                {
-                  if (client_id == val)
-                  {
-                    return true;
-                  }
-                }
-                return false;
-              });
+    [val](const std::pair<int, std::pair<PipeInfo, std::vector<int>>>& pair_in)
+    {
+      for (const auto& client_id : pair_in.second.second)
+      {
+        if (client_id == val)
+        {
+          return true;
+        }
+      }
+      return false;
+    });
 
     if (it != allocated_pipes_hack_.end())
     {
-      TEMOTO_INFO("Pipe of type '%s' (pipe size: %d) has stopped working",
-                   it->second.first.getType().c_str(),
-                   it->second.first.getPipeSize());
+      TEMOTO_INFO("Pipe of type '%s' (pipe size: %d) has stopped working"
+      , it->second.first.getType().c_str()
+      , it->second.first.getPipeSize());
 
       // Reduce the reliability of the pipe
       it->second.first.reliability_.adjustReliability(0);
@@ -144,8 +150,7 @@ void ComponentManagerServers::statusCb2(temoto_core::ResourceStatus& srv)
 /*
  * ComponentManagerServers::listComponentsCb
  */
-bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
-                                              , ListComponents::Response& res)
+bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req, ListComponents::Response& res)
 {
   // Find the devices with the required type
   for (const auto& component : cir_->getLocalComponents())
@@ -171,8 +176,7 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req
 /*
  * ComponentManagerServers::listPipesCb
  */
-bool ComponentManagerServers::listPipesCb( ListPipes::Request& req
-                                         , ListPipes::Response& res)
+bool ComponentManagerServers::listPipesCb( ListPipes::Request& req, ListPipes::Response& res)
 {
   // TODO: Find the pipes with the required type
   for (const auto& pipe_category : cir_->getPipes())
