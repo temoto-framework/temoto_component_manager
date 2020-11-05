@@ -4,4 +4,7 @@ string type
 ---
 
 # List of components as yaml string
-temoto_component_manager/Component[] component_infos
+temoto_component_manager/Component[] local_components
+
+# List of components as yaml string
+temoto_component_manager/Component[] remote_components

@@ -13,6 +13,9 @@ string package_name
 # When undefined, first defined entry is used.
 string executable
 
+# Which temoto instance is managing this component
+string temoto_namespace
+
 # Output topics. Each element is a pair of strings where the 
 # first element (key) describes the type of the topic and the
 # second element (value) describes the name of the topic itself.

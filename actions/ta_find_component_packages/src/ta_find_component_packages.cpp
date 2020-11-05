@@ -40,7 +40,7 @@ public:
 TaFindComponentPackages()
 {
   // ---> YOUR CONSTRUCTION ROUTINES HERE <--- //
-  std::cout << __func__ << " constructed\n";
+  TEMOTO_INFO("Constructed");
 }
 
 // REQUIRED BY TEMOTO

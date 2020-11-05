@@ -161,12 +161,31 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req, Li
       comp_msg.component_name = component.getName();
       comp_msg.component_type = component.getType();
       comp_msg.package_name = component.getPackageName();
+      comp_msg.temoto_namespace = component.getTemotoNamespace();
       comp_msg.executable = component.getExecutable();
       comp_msg.input_topics = component.getInputTopicsAsKeyVal();
       comp_msg.output_topics = component.getOutputTopicsAsKeyVal();
       comp_msg.required_parameters = component.getRequiredParametersAsKeyVal();
     
-      res.component_infos.push_back(comp_msg);
+      res.local_components.push_back(comp_msg);
+    }
+  }
+
+  for (const auto& component : cir_->getRemoteComponents())
+  {
+    if (component.getType() == req.type || req.type.empty())
+    {
+      temoto_component_manager::Component comp_msg;
+      comp_msg.component_name = component.getName();
+      comp_msg.component_type = component.getType();
+      comp_msg.package_name = component.getPackageName();
+      comp_msg.temoto_namespace = component.getTemotoNamespace();
+      comp_msg.executable = component.getExecutable();
+      comp_msg.input_topics = component.getInputTopicsAsKeyVal();
+      comp_msg.output_topics = component.getOutputTopicsAsKeyVal();
+      comp_msg.required_parameters = component.getRequiredParametersAsKeyVal();
+    
+      res.remote_components.push_back(comp_msg);
     }
   }
 

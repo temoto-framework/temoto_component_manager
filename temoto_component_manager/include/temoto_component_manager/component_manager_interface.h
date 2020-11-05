@@ -79,8 +79,25 @@ public:
     log_group_ = "interfaces." + parent_subsystem->class_name_;
     subsystem_name_ = parent_subsystem->class_name_ + "/component_manager_interface";
 
+    client_list_components_ = nh_.serviceClient<ListComponents>(srv_name::LIST_COMPONENTS_SERVER);
+
     resource_registrar_ = std::unique_ptr<temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>>(new temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>(subsystem_name_, this));
     resource_registrar_->registerStatusCb(&ComponentManagerInterface::statusInfoCb);
+  }
+
+  ListComponents::Response listComponents(const std::string& component_type = "")
+  {
+    ListComponents msg;
+    msg.request.type = component_type;
+
+    if (!client_list_components_.call(msg))
+    {
+      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Service call returned false.");
+    }
+    else
+    {
+      return msg.response;
+    }
   }
 
   /**
@@ -734,6 +751,12 @@ private:
       return false;
     }
   }
+
+  /*
+   * Class members
+   */
+  ros::NodeHandle nh_;
+  ros::ServiceClient client_list_components_;
 };
 
 } // namespace

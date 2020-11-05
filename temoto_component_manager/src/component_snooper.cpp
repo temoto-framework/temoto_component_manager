@@ -90,7 +90,8 @@ void ComponentSnooper::startSnooping()
       ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
       find_components_umrf.setInputParameters(ap);
-      action_engine_.executeUmrfGraph("component_snooper_graph_1", std::vector<Umrf>{find_components_umrf}, true);
+      UmrfGraph ug("component_snooper_graph_1", std::vector<Umrf>{find_components_umrf});
+      action_engine_.executeUmrfGraph(ug, true);
     }
 
     // Invoke the pipe finding action
@@ -105,7 +106,8 @@ void ComponentSnooper::startSnooping()
       ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
       find_pipes_umrf.setInputParameters(ap);
-      action_engine_.executeUmrfGraph("component_snooper_graph_2", std::vector<Umrf>{find_pipes_umrf}, true);
+      UmrfGraph ug("component_snooper_graph_2", std::vector<Umrf>{find_pipes_umrf});
+      action_engine_.executeUmrfGraph(ug, true);
     }
   }
   catch(const std::exception& e)
