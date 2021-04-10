@@ -31,7 +31,7 @@ using namespace temoto_core;
 //       and I have no clue what kind of behaviour should be expected - prolly bad
 
 ComponentSnooper::ComponentSnooper( temoto_core::BaseSubsystem*b
-                            , ComponentInfoRegistry* cir)
+, ComponentInfoRegistry* cir)
 : temoto_core::BaseSubsystem(*b, __func__)
 , config_syncer_(srv_name::MANAGER, srv_name::SYNC_TOPIC, &ComponentSnooper::syncCb, this)
 , action_engine_()
@@ -68,56 +68,47 @@ ComponentSnooper::ComponentSnooper( temoto_core::BaseSubsystem*b
 }
 
 void ComponentSnooper::startSnooping()
+try
 {
-  /*
-   * Action related stuff up ahead: A semantic frame is manually created. Based on that SF
-   * a SF tree is created, given that an action implementation, that corresponds to the
-   * manually created SF, exists. The specific tracker task is started and it continues
-   * running in the background until its ordered to be stopped.
-   */
-
-  try
+  // Invoke the component finder action
   {
-    // Invoke the component finder action
-    {
-      Umrf find_components_umrf;
-      find_components_umrf.setName("TaFindComponentPackages");
-      find_components_umrf.setSuffix(0);
-      find_components_umrf.setEffect("synchronous");
+    UmrfNode find_components_umrf;
+    find_components_umrf.setName("TaFindComponentPackages");
+    find_components_umrf.setSuffix(0);
+    find_components_umrf.setEffect("synchronous");
 
-      ActionParameters ap;
-      ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../../.."));
-      ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
+    ActionParameters ap;
+    ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../../.."));
+    ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
-      find_components_umrf.setInputParameters(ap);
-      UmrfGraph ug("component_snooper_graph_1", std::vector<Umrf>{find_components_umrf});
-      action_engine_.executeUmrfGraph(ug, true);
-    }
-
-    // Invoke the pipe finding action
-    {
-      Umrf find_pipes_umrf;
-      find_pipes_umrf.setName("TaFindComponentPipes");
-      find_pipes_umrf.setSuffix(0);
-      find_pipes_umrf.setEffect("synchronous");
-
-      ActionParameters ap;
-      ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../../.."));
-      ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
-
-      find_pipes_umrf.setInputParameters(ap);
-      UmrfGraph ug("component_snooper_graph_2", std::vector<Umrf>{find_pipes_umrf});
-      action_engine_.executeUmrfGraph(ug, true);
-    }
+    find_components_umrf.setInputParameters(ap);
+    UmrfGraph ug("component_snooper_graph_1", std::vector<Umrf>{find_components_umrf});
+    action_engine_.executeUmrfGraph(ug, true);
   }
-  catch(const std::exception& e)
+
+  // Invoke the pipe finding action
   {
-    throw CREATE_ERROR(temoto_core::error::Code::ACTION_UNKNOWN, e.what());
+    UmrfNode find_pipes_umrf;
+    find_pipes_umrf.setName("TaFindComponentPipes");
+    find_pipes_umrf.setSuffix(0);
+    find_pipes_umrf.setEffect("synchronous");
+
+    ActionParameters ap;
+    ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../../.."));
+    ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
+
+    find_pipes_umrf.setInputParameters(ap);
+    UmrfGraph ug("component_snooper_graph_2", std::vector<Umrf>{find_pipes_umrf});
+    action_engine_.executeUmrfGraph(ug, true);
   }
-  catch(...)
-  {
-    throw CREATE_ERROR(temoto_core::error::Code::ACTION_UNKNOWN, "Unhandled exception");
-  }
+}
+catch(const std::exception& e)
+{
+  throw CREATE_ERROR(temoto_core::error::Code::ACTION_UNKNOWN, e.what());
+}
+catch(...)
+{
+  throw CREATE_ERROR(temoto_core::error::Code::ACTION_UNKNOWN, "Unhandled exception");
 }
 
 void ComponentSnooper::advertiseComponent(ComponentInfo& si) const

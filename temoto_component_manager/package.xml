@@ -14,6 +14,7 @@
 	<depend>message_generation</depend>
   <!--depend>yaml-cpp</depend-->
   <depend>temoto_core</depend>
+  <depend>temoto_resource_registrar</depend>
   <depend>temoto_action_engine</depend>
   <depend>temoto_er_manager</depend>
 

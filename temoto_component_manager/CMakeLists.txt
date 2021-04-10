@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(temoto_component_manager)
-add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function -Wno-pedantic -ggdb)
+add_compile_options(-std=c++14 -Wno-reorder -Wno-unused-function -Wno-pedantic)
 
 option(TEMOTO_ENABLE_TRACING "Use tracer" OFF)
 
@@ -10,6 +10,7 @@ endif()
 
 find_package(catkin REQUIRED COMPONENTS
   temoto_core
+  temoto_resource_registrar
   temoto_action_engine
   temoto_er_manager
   roscpp

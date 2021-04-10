@@ -31,22 +31,40 @@ using namespace temoto_core;
 ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfoRegistry *cir)
 : BaseSubsystem(*b, __func__)
 , cir_(cir)
-, resource_registrar_1_(srv_name::MANAGER, this)
-, resource_registrar_2_(srv_name::MANAGER_2, this)
+, resource_registrar_(srv_name::MANAGER)
 {
   /*
-   * Set up the resource servers and register status callbacks
+   * Configure the RR catalog backup routine
    */
-  resource_registrar_1_.addServer<LoadComponent>( srv_name::SERVER
-  , &ComponentManagerServers::loadComponentCb
-  , &ComponentManagerServers::unloadComponentCb);
+  std::string home_path = std::getenv("HOME");
+  std::string rr_catalog_backup_path = home_path + "/.temoto/" + srv_name::MANAGER + ".rrcat";
+  rr_catalog_config_.setName(srv_name::MANAGER);
+  rr_catalog_config_.setLocation(rr_catalog_backup_path);
+  rr_catalog_config_.setSaveOnModify(true);
+  rr_catalog_config_.setEraseOnDestruct(true);
+  resource_registrar_.updateConfiguration(rr_catalog_config_);
 
-  resource_registrar_2_.addServer<LoadPipe>( srv_name::PIPE_SERVER
-  , &ComponentManagerServers::loadPipeCb
-  , &ComponentManagerServers::unloadPipeCb);
+  /*
+   * Add the LoadComponent server to the resource registrar
+   */
+  {
+    auto server = std::make_unique<Ros1Server<LoadComponent>>(srv_name::MANAGER + "_" + srv_name::SERVER
+    , std::bind(&ComponentManagerServers::loadComponentCb, this, std::placeholders::_1, std::placeholders::_2)
+    , std::bind(&ComponentManagerServers::unloadComponentCb, this, std::placeholders::_1, std::placeholders::_2));
+    resource_registrar_.registerServer(std::move(server));
+  }
 
-  resource_registrar_1_.registerStatusCb(&ComponentManagerServers::statusCb1);
-  resource_registrar_2_.registerStatusCb(&ComponentManagerServers::statusCb2);
+  /*
+   * Add the LoadPipe server to the resource registrar
+   */
+  {
+    auto server = std::make_unique<Ros1Server<LoadComponent>>(srv_name::MANAGER + "_" + srv_name::PIPE_SERVER
+    , std::bind(&ComponentManagerServers::loadPipeCb, this, std::placeholders::_1, std::placeholders::_2)
+    , std::bind(&ComponentManagerServers::unloadPipeCb, this, std::placeholders::_1, std::placeholders::_2));
+    resource_registrar_.registerServer(std::move(server));
+  }
+
+  resource_registrar_.init();
 
   /*
    * Set up simple ROS servers that do not provide any resources
@@ -70,28 +88,36 @@ ComponentManagerServers::~ComponentManagerServers()
 }
 
 /*
- * ComponentManagerServers::statusCb1
+ * ComponentManagerServers::componentStatusCb
  */
-void ComponentManagerServers::statusCb1(temoto_core::ResourceStatus& srv)
+void ComponentManagerServers::componentStatusCb(temoto_er_manager::LoadExtResource srv_msg
+, temoto_resource_registrar::Status status_msg)
 {
   TEMOTO_DEBUG("Received a status message.");
 
   // If local component failed, adjust package reliability and advertise to other managers via
   // synchronizer.
-  if (srv.request.status_code == trr::status_codes::FAILED)
+  if (status_msg.state_ == temoto_resource_registrar::Status::State::FATAL)
   {
     std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
-    auto it = allocated_components_.find(srv.request.resource_id);
+    auto it = std::find(allocated_components_.begin()
+    , allocated_components_.end()
+    , [&srv_msg](const AllocCompTuple& act)
+      {
+        return std::get<2>(act).response.TemotoMetadata.requestId 
+          == srv_msg.response.TemotoMetadata.requestId;
+      });
+
     if (it == allocated_components_.end())
     {
       return;
     }
 
-    if (it->second.first.isLocal())
+    if (std::get<1>(*it).isLocal())
     {
       TEMOTO_WARN("Local component failure detected, adjusting reliability.");
-      it->second.first.adjustReliability(0.0);
-      cir_->updateLocalComponent(it->second.first);
+      std::get<1>(*it).adjustReliability(0.0);
+      cir_->updateLocalComponent(std::get<1>(*it));
     }
     else
     {
@@ -105,46 +131,46 @@ void ComponentManagerServers::statusCb1(temoto_core::ResourceStatus& srv)
  */
 void ComponentManagerServers::statusCb2(temoto_core::ResourceStatus& srv)
 {
-  TEMOTO_DEBUG("Received a status message.");
+  // TEMOTO_DEBUG("Received a status message.");
 
-  // If local sensor failed, adjust package reliability and advertise to other managers via
-  // synchronizer.
-  if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
-  {
-    TEMOTO_DEBUG("A resource, that a running pipe depends on, has failed");
+  // // If local sensor failed, adjust package reliability and advertise to other managers via
+  // // synchronizer.
+  // if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
+  // {
+  //   TEMOTO_DEBUG("A resource, that a running pipe depends on, has failed");
 
-    int val = srv.request.resource_id;
+  //   int val = srv.request.resource_id;
 
-    auto it = std::find_if(allocated_pipes_hack_.begin(), allocated_pipes_hack_.end(),
-    [val](const std::pair<int, std::pair<PipeInfo, std::vector<int>>>& pair_in)
-    {
-      for (const auto& client_id : pair_in.second.second)
-      {
-        if (client_id == val)
-        {
-          return true;
-        }
-      }
-      return false;
-    });
+  //   auto it = std::find_if(allocated_pipes_hack_.begin(), allocated_pipes_hack_.end(),
+  //   [val](const std::pair<int, std::pair<PipeInfo, std::vector<int>>>& pair_in)
+  //   {
+  //     for (const auto& client_id : pair_in.second.second)
+  //     {
+  //       if (client_id == val)
+  //       {
+  //         return true;
+  //       }
+  //     }
+  //     return false;
+  //   });
 
-    if (it != allocated_pipes_hack_.end())
-    {
-      TEMOTO_INFO("Pipe of type '%s' (pipe size: %d) has stopped working"
-      , it->second.first.getType().c_str()
-      , it->second.first.getPipeSize());
+  //   if (it != allocated_pipes_hack_.end())
+  //   {
+  //     TEMOTO_INFO("Pipe of type '%s' (pipe size: %d) has stopped working"
+  //     , it->second.first.getType().c_str()
+  //     , it->second.first.getPipeSize());
 
-      // Reduce the reliability of the pipe
-      it->second.first.reliability_.adjustReliability(0);
-      cir_->updatePipe(it->second.first);
-    }
-  }
-  else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
-  {
-    /*
-     * Everything is handled by Resource Registrar
-     */ 
-  }
+  //     // Reduce the reliability of the pipe
+  //     it->second.first.reliability_.adjustReliability(0);
+  //     cir_->updatePipe(it->second.first);
+  //   }
+  // }
+  // else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
+  // {
+  //   /*
+  //    * Everything is handled by Resource Registrar
+  //    */ 
+  // }
 }
 
 /*
@@ -188,7 +214,6 @@ bool ComponentManagerServers::listComponentsCb( ListComponents::Request& req, Li
       res.remote_components.push_back(comp_msg);
     }
   }
-
   return true;
 }
 
@@ -228,9 +253,21 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 {
   TEMOTO_DEBUG_STREAM("Received a request to load a component: \n" << req << std::endl);
 
+  /*
+    There are two significantly different conditions how this callback is invoked by RR server:
+    a) The query is completely unique, no such component is running yet.
+    b) The query asks for a component that's already running, but wants the data to be published on custom topics.
+
+    Condition a) is handled in a regular way, that is, the component is located and loaded via ERM.
+    Condition b) is a bit more special. The running component is found and ERM is invoked 2 times:
+      1'st call to ERM sets up a topic remapping node
+      2'nd call to ERM asks to "start" the already running component in order to increase its use count.
+   */
+
   // Try to find suitable candidate from local components
   std::vector<ComponentInfo> l_cis;
   std::vector<ComponentInfo> r_cis;
+  Ros1Query<LoadComponent> parent_query(res.TemotoMetadata);
 
   bool got_local_components = cir_->findLocalComponents(req, l_cis);
   bool got_remote_components = cir_->findRemoteComponents(req, r_cis);
@@ -258,47 +295,31 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
   if (got_local_components && !prefer_remote)
   {
     TEMOTO_DEBUG_STREAM("Found a suitable local candidate.");
-    /*
-     * Check if the requested component is already in use  but providing some other 
-     * types of data (compared to current request) If thats the case, then set up 
-     * a topic remapper
-     * 
-     * TODO: Add a feature (boolean) to allow components not to be "reused" like that
-     */ 
-    temoto_er_manager::LoadExtResource load_er_msg;
-    temoto_core::temoto_id::ID alloc_comp_id = checkIfInUse(l_cis);
+    auto allocated_component = checkIfInUse(req);
 
-    if (alloc_comp_id != temoto_core::temoto_id::UNASSIGNED_ID)
+    /*
+     * The component is already in use but the client wants certain topics to be remapped (condition "b").
+     */ 
+    if (allocated_component)
     {
       TEMOTO_DEBUG_STREAM("The given component is already in use but it is providing other data than requested."
        "Setting up a topic relay ...");
-      
-      std::lock_guard<std::recursive_mutex> guard_aerm(allocated_ext_resources_mutex_);
-      load_er_msg = allocated_ext_resources_.at(alloc_comp_id);
-      std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
 
-      // TODO: This is load of hacks because resource registrar does not maintain previous requests/responses
-      ComponentInfo& alloc_comp_info = allocated_components_.at(alloc_comp_id).first;
-      LoadComponent::Response& alloc_comp_response = allocated_components_.at(alloc_comp_id).second;
-      temoto_core::TopicContainer alloc_comp_response_container;
-      alloc_comp_response_container.setInputTopicsByKeyValue(alloc_comp_response.input_topics);
-      alloc_comp_response_container.setOutputTopicsByKeyValue(alloc_comp_response.output_topics);
+      const auto& allocated_component_res = std::get<0>(*allocated_component).response;
+      temoto_core::TopicContainer alloc_comp_res_tpc_container;
+      alloc_comp_res_tpc_container.setInputTopicsByKeyValue(allocated_component_res.input_topics);
+      alloc_comp_res_tpc_container.setOutputTopicsByKeyValue(allocated_component_res.output_topics);
 
       try
       {
-        /*
-         * Load the component. Even though the component is already loaded, the query is still sent
-         * to External Resource Manager with the same parameters - Why? Because in that case the 
-         * External Resource Manager does not start another component but rather just increases
-         * it's use count.
-         */ 
-        resource_registrar_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
-                                                      , temoto_er_manager::srv_name::SERVER
-                                                      , load_er_msg
-                                                      , trr::FailureBehavior::NONE);
+        resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
+        , temoto_er_manager::srv_name::SERVER
+        , std::get<2>(*allocated_component)
+        , &parent_query
+        , std::bind(&ComponentManagerServers::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
-        res.package_name = alloc_comp_info.getPackageName();
-        res.executable = alloc_comp_info.getExecutable();
+        res.package_name = std::get<0>(*allocated_component).response.package_name;
+        res.executable = std::get<0>(*allocated_component).response.executable;
         /*
          * Set up the topics that are returned to the client
          */
@@ -311,7 +332,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             // If the client did not ask the data to be remapped, then return the default topic
             diagnostic_msgs::KeyValue in_tpc;
             in_tpc.key = input_topic.key;
-            in_tpc.value = alloc_comp_response_container.getInputTopic(input_topic.key);
+            in_tpc.value = alloc_comp_res_tpc_container.getInputTopic(input_topic.key);
             res.input_topics.push_back(in_tpc);
           }
           else
@@ -321,12 +342,12 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             load_er_msg_remapper.request.action = temoto_er_manager::action::ROS_EXECUTE;
             load_er_msg_remapper.request.package_name = "topic_tools";
             load_er_msg_remapper.request.executable = "relay";
-            load_er_msg_remapper.request.args = alloc_comp_response_container.getInputTopic(input_topic.key) + " " + input_topic.value;
+            load_er_msg_remapper.request.args = alloc_comp_res_tpc_container.getInputTopic(input_topic.key) + " " + input_topic.value;
             
-            resource_registrar_1_.call<temoto_er_manager::LoadExtResource>( temoto_er_manager::srv_name::MANAGER
-                                                      , temoto_er_manager::srv_name::SERVER
-                                                      , load_er_msg_remapper
-                                                      , trr::FailureBehavior::NONE);
+            resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
+            , temoto_er_manager::srv_name::SERVER
+            , load_er_msg_remapper
+            , &parent_query);
 
             res.input_topics.push_back(input_topic);
           }
@@ -335,7 +356,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
         // Output topics
         if (req.output_topics.empty())
         {
-          res.output_topics = alloc_comp_response.output_topics;
+          res.output_topics = allocated_component_res.output_topics;
           return;
         }
 
@@ -346,7 +367,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             // If the client did not ask the data to be remapped, then return the default topic
             diagnostic_msgs::KeyValue out_tpc;
             out_tpc.key = output_topic.key;
-            out_tpc.value = alloc_comp_response_container.getOutputTopic(output_topic.key);
+            out_tpc.value = alloc_comp_res_tpc_container.getOutputTopic(output_topic.key);
             res.output_topics.push_back(out_tpc);
           }
           else
@@ -356,14 +377,13 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
             load_er_msg_remapper.request.action = temoto_er_manager::action::ROS_EXECUTE;
             load_er_msg_remapper.request.package_name = "topic_tools";
             load_er_msg_remapper.request.executable = "relay";
-            load_er_msg_remapper.request.args = alloc_comp_response_container.getOutputTopic(output_topic.key) + " " + output_topic.value;
+            load_er_msg_remapper.request.args = alloc_comp_res_tpc_container.getOutputTopic(output_topic.key) + " " + output_topic.value;
             TEMOTO_DEBUG_STREAM("key: " << output_topic.key << ". args: " << load_er_msg_remapper.request.args);
 
-            resource_registrar_1_.call<temoto_er_manager::LoadExtResource>(
-              temoto_er_manager::srv_name::MANAGER
+            resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
             , temoto_er_manager::srv_name::SERVER
             , load_er_msg_remapper
-            , trr::FailureBehavior::NONE);
+            , &parent_query);
 
             res.output_topics.push_back(output_topic);
           }
@@ -378,6 +398,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
     }
 
     /*
+     * The component is unique and not in use (condition "a").
      * Loop through suitable local component candidates
      */ 
     for (ComponentInfo& ci : l_cis)
@@ -405,13 +426,13 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 
       try
       {
-        resource_registrar_1_.call<temoto_er_manager::LoadExtResource>(
-          temoto_er_manager::srv_name::MANAGER
+        resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
         , temoto_er_manager::srv_name::SERVER
         , load_er_msg
-        , trr::FailureBehavior::NONE);
+        , &parent_query
+        , std::bind(&ComponentManagerServers::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
-        TEMOTO_DEBUG("Call to ProcessManager was sucessful.");
+        TEMOTO_DEBUG("Call to External Resource Manager was sucessful.");
 
         // Fill out the response about which particular component was chosen
         res.package_name = ci.getPackageName();
@@ -421,10 +442,11 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
         cir_->updateLocalComponent(ci);
 
         std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
-        std::lock_guard<std::recursive_mutex> guard_aerm(allocated_ext_resources_mutex_);
 
-        allocated_components_.emplace(res.trr.resource_id, std::make_pair(ci, res));
-        allocated_ext_resources_.emplace(res.trr.resource_id, load_er_msg);
+        LoadComponent load_component_srv_msg;
+        load_component_srv_msg.request = req;
+        load_component_srv_msg.response = res;
+        allocated_components_.push_back({load_component_srv_msg, ci, load_er_msg});
 
         return;
       }
@@ -459,24 +481,23 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
       load_component_msg.request.required_parameters = req.required_parameters;
 
       TEMOTO_INFO( "Component Manager is forwarding request: '%s', '%s', '%s', reliability %.3f"
-                 , ci.getType().c_str()
-                 , ci.getPackageName().c_str()
-                 , ci.getExecutable().c_str()
-                 , ci.getReliability());
+      , ci.getType().c_str()
+      , ci.getPackageName().c_str()
+      , ci.getExecutable().c_str()
+      , ci.getReliability());
 
       try
       {
-        resource_registrar_1_.call<LoadComponent>( srv_name::MANAGER
-                                              , srv_name::SERVER
-                                              , load_component_msg
-                                              , trr::FailureBehavior::NONE
-                                              , ci.getTemotoNamespace());
+        resource_registrar_.call<LoadComponent>(srv_name::MANAGER
+        , srv_name::SERVER
+        , load_component_msg
+        , &parent_query);
 
         TEMOTO_DEBUG("Call to remote ComponentManagerServers was sucessful.");
         res = load_component_msg.response;
 
-        std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
-        allocated_components_.emplace(res.trr.resource_id, std::make_pair(ci, res));
+        // std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
+        // allocated_components_.emplace(res.trr.resource_id, std::make_pair(ci, res));
       }
       catch(error::ErrorStack& error_stack)
       {
@@ -804,57 +825,59 @@ void ComponentManagerServers::processParameters( std::vector<diagnostic_msgs::Ke
   }
 }
 
-temoto_core::temoto_id::ID ComponentManagerServers::checkIfInUse( const std::vector<ComponentInfo>& cis_to_check) const
+boost::optional<AllocCompTuple> ComponentManagerServers::checkIfInUse(const LoadComponent::Request& req) const
 {
   std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
-  for (const ComponentInfo& ci : cis_to_check)
-  {
-    for (auto const& ac : allocated_components_)
+  auto comp_er_pair_it = std::find_if(allocated_components_.begin()
+  , allocated_components_.end()
+  , [req](const AllocCompTuple& ac_pair)
     {
-      if (ac.second.first.getPackageName() != ci.getPackageName())
-      {
-        continue;
-      }
+      const auto& acp_req = ac_pair.first.request;
+      const auto& acp_res = ac_pair.first.response;
 
-      if (ac.second.first.getExecutable() != ci.getExecutable())
-      {
-        continue;
-      }
-
-      return ac.first;
-    }
+      return (req.component_type == acp_req.component_type
+      && (req.executable == acp_req.executable || req.executable == acp_res.executable)
+      && (req.package_name == acp_req.package_name || req.package_name == acp_res.package_name));
+    });
+  
+  if (comp_er_pair_it != allocated_components_.end())
+  {
+    boost::optional<AllocCompTuple>(*comp_er_pair_it);
   }
-  return temoto_core::temoto_id::UNASSIGNED_ID;
+  else
+  {
+    return boost::optional<AllocCompTuple>();
+  }
 }
 
 void ComponentManagerServers::cirUpdateCallback(ComponentInfo component)
 {
-  TEMOTO_DEBUG_STREAM("A component was added or updated ...");
+  // TEMOTO_DEBUG_STREAM("A component was added or updated ...");
 
-  // make a copy of the allocated_components so that it will not be corrupted by other threads
-  std::map<temoto_core::temoto_id::ID, ComponentInfoResponse> allocated_components_cpy;
-  {
-    std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
-    allocated_components_cpy = allocated_components_;
-  }
+  // // make a copy of the allocated_components so that it will not be corrupted by other threads
+  // std::map<temoto_core::temoto_id::ID, ComponentInfoResponse> allocated_components_cpy;
+  // {
+  //   std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
+  //   allocated_components_cpy = allocated_components_;
+  // }
 
-  for (const auto allocated_component : allocated_components_cpy)
-  {
-    if (component.getType() != allocated_component.second.first.getType())
-    {
-      continue;
-    }
-    if (component.getReliability() <= allocated_component.second.first.getReliability())
-    {
-      continue;
-    }
+  // for (const auto allocated_component : allocated_components_cpy)
+  // {
+  //   if (component.getType() != allocated_component.second.first.getType())
+  //   {
+  //     continue;
+  //   }
+  //   if (component.getReliability() <= allocated_component.second.first.getReliability())
+  //   {
+  //     continue;
+  //   }
 
-    temoto_core::ResourceStatus status_message;
-    status_message.request.resource_id = allocated_component.first;
-    status_message.request.status_code = trr::status_codes::UPDATE;
-    status_message.request.message = "A component that is currently loaded got a more reliable alternative component";
-    resource_registrar_1_.sendStatus(status_message);
-  }
+  //   temoto_core::ResourceStatus status_message;
+  //   status_message.request.resource_id = allocated_component.first;
+  //   status_message.request.status_code = trr::status_codes::UPDATE;
+  //   status_message.request.message = "A component that is currently loaded got a more reliable alternative component";
+  //   resource_registrar_1_.sendStatus(status_message);
+  // }
   TEMOTO_DEBUG_STREAM("CIR update routine finished.");
 }
 

@@ -14,22 +14,23 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #ifndef TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_SERVERS_H
 #define TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_SERVERS_H
 
+#include "rr/ros1_resource_registrar.h"
 #include "temoto_core/common/base_subsystem.h"
 #include "temoto_core/common/temoto_id.h"
-#include "temoto_core/trr/resource_registrar.h"
 #include "temoto_component_manager/component_info_registry.h"
 #include "temoto_component_manager/component_manager_services.h"
 #include "temoto_er_manager/temoto_er_manager_services.h"
 #include "std_msgs/String.h"
 #include <mutex>
+#include <boost/optional.hpp>
+#include <tuple>
 
 namespace temoto_component_manager
 {
+typedef std::tuple<LoadComponent, ComponentInfo, temoto_er_manager::LoadExtResource> AllocCompTuple;
 
 /**
  * @brief The ComponentManagerServers contains all Component Manager related ROS services.
@@ -37,6 +38,7 @@ namespace temoto_component_manager
 class ComponentManagerServers : public temoto_core::BaseSubsystem
 {
 public:
+
   /**
    * @brief Constructor.
    * @param b pointer to parent class (each subsystem in TeMoto inherits the base subsystem class).
@@ -103,9 +105,11 @@ private:
 
   /**
    * @brief Called when component status update information is received.
-   * @param srv
+   * 
+   * @param srv_msg 
+   * @param status_msg 
    */
-  void statusCb1(temoto_core::ResourceStatus& srv);
+  void componentStatusCb(temoto_er_manager::LoadExtResource srv_msg, temoto_resource_registrar::Status status_msg);
 
   /**
    * @brief Called when component status update information is received.
@@ -140,7 +144,7 @@ private:
    * @param ci_to_check 
    * @return temoto_core::temoto_id::ID 
    */
-  temoto_core::temoto_id::ID checkIfInUse( const std::vector<ComponentInfo>& cis_to_check) const;
+  boost::optional<AllocCompTuple> checkIfInUse(const LoadComponent::Request& req) const;
 
   ros::NodeHandle nh_;
   ros::ServiceServer list_components_server_;
@@ -149,14 +153,17 @@ private:
   /// Pointer to a central Component Info Registry object.
   ComponentInfoRegistry* cir_;
 
-  /// Resource Management object which handles resource requests and status info propagation.
-  temoto_core::trr::ResourceRegistrar<ComponentManagerServers> resource_registrar_1_;
+  // /// Resource Management object which handles resource requests and status info propagation.
+  // temoto_core::trr::ResourceRegistrar<ComponentManagerServers> resource_registrar_1_;
 
-  /*
-   * TODO: The second manager is used for making RMP calls within the same manager. If the same
-   * resouce manager is used for calling servers managed by the same manager, the calls will lock
-   */
-  temoto_core::trr::ResourceRegistrar<ComponentManagerServers> resource_registrar_2_;
+  // /*
+  //  * TODO: The second manager is used for making RMP calls within the same manager. If the same
+  //  * resouce manager is used for calling servers managed by the same manager, the calls will lock
+  //  */
+  // temoto_core::trr::ResourceRegistrar<ComponentManagerServers> resource_registrar_2_;
+
+  temoto_resource_registrar::ResourceRegistrarRos1 resource_registrar_;
+  temoto_resource_registrar::Configuration rr_catalog_config_;
 
   /// Generates unique id's for the pipes
   temoto_core::temoto_id::IDManager pipe_id_generator_;
@@ -169,12 +176,14 @@ private:
   mutable std::recursive_mutex allocated_pipes_mutex_;
 
   /// List of allocated components
-  typedef std::pair<ComponentInfo, LoadComponent::Response> ComponentInfoResponse;
-  std::map<temoto_core::temoto_id::ID, ComponentInfoResponse> allocated_components_;
+  std::vector<AllocCompTuple> allocated_components_;
+
+  // typedef std::pair<ComponentInfo, LoadComponent::Response> ComponentInfoResponse;
+  // std::map<temoto_core::temoto_id::ID, ComponentInfoResponse> allocated_components_;
   mutable std::recursive_mutex allocated_components_mutex_;
 
-  std::map<temoto_core::temoto_id::ID, temoto_er_manager::LoadExtResource> allocated_ext_resources_;
-  mutable std::recursive_mutex allocated_ext_resources_mutex_;
+  // std::map<temoto_core::temoto_id::ID, temoto_er_manager::LoadExtResource> allocated_ext_resources_;
+  // mutable std::recursive_mutex allocated_ext_resources_mutex_;
 
 }; // ComponentManagerServers
 
