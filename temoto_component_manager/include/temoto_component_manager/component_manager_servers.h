@@ -31,6 +31,7 @@
 namespace temoto_component_manager
 {
 typedef std::tuple<LoadComponent, ComponentInfo, temoto_er_manager::LoadExtResource> AllocCompTuple;
+typedef std::pair<LoadPipe, std::pair<PipeInfo, std::vector<LoadComponent>>> AllocPipePair;
 
 /**
  * @brief The ComponentManagerServers contains all Component Manager related ROS services.
@@ -112,10 +113,12 @@ private:
   void componentStatusCb(temoto_er_manager::LoadExtResource srv_msg, temoto_resource_registrar::Status status_msg);
 
   /**
-   * @brief Called when component status update information is received.
-   * @param srv
+   * @brief 
+   * 
+   * @param srv_msg 
+   * @param status_msg 
    */
-  void statusCb2(temoto_core::ResourceStatus& srv);
+  void pipeStatusCb(LoadComponent srv_msg, temoto_resource_registrar::Status status_msg);
 
   /**
    * @brief A function that helps to manage component topic related information.
@@ -153,37 +156,19 @@ private:
   /// Pointer to a central Component Info Registry object.
   ComponentInfoRegistry* cir_;
 
-  // /// Resource Management object which handles resource requests and status info propagation.
-  // temoto_core::trr::ResourceRegistrar<ComponentManagerServers> resource_registrar_1_;
-
-  // /*
-  //  * TODO: The second manager is used for making RMP calls within the same manager. If the same
-  //  * resouce manager is used for calling servers managed by the same manager, the calls will lock
-  //  */
-  // temoto_core::trr::ResourceRegistrar<ComponentManagerServers> resource_registrar_2_;
-
   temoto_resource_registrar::ResourceRegistrarRos1 resource_registrar_;
   temoto_resource_registrar::Configuration rr_catalog_config_;
 
   /// Generates unique id's for the pipes
   temoto_core::temoto_id::IDManager pipe_id_generator_;
 
-  /*
-   * TODO: A DATA STRUCTURE THAT IS A TEMPORARY HACK UNTIL RMP IS IMPROVED
-   */
-  typedef std::map<temoto_core::temoto_id::ID, std::pair<PipeInfo, std::vector<int>>> AllocatedPipes;
-  AllocatedPipes allocated_pipes_hack_;
-  mutable std::recursive_mutex allocated_pipes_mutex_;
-
   /// List of allocated components
   std::vector<AllocCompTuple> allocated_components_;
-
-  // typedef std::pair<ComponentInfo, LoadComponent::Response> ComponentInfoResponse;
-  // std::map<temoto_core::temoto_id::ID, ComponentInfoResponse> allocated_components_;
   mutable std::recursive_mutex allocated_components_mutex_;
 
-  // std::map<temoto_core::temoto_id::ID, temoto_er_manager::LoadExtResource> allocated_ext_resources_;
-  // mutable std::recursive_mutex allocated_ext_resources_mutex_;
+  /// List of allocated pipes
+  std::vector<AllocPipePair> allocated_pipes_;
+  mutable std::recursive_mutex allocated_pipes_mutex_;
 
 }; // ComponentManagerServers
 
