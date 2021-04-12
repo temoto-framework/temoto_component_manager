@@ -14,8 +14,6 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #ifndef TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_SERVICES_H
 #define TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_SERVICES_H
 
@@ -35,10 +33,8 @@ namespace temoto_component_manager
   {
     const std::string MANAGER = "component_manager";
     const std::string SERVER = "load_component";
-    const std::string SYNC_TOPIC = "/temoto_component_manager/"+MANAGER+"/sync";
-
-    const std::string MANAGER_2 = "component_manager_pipe";
     const std::string PIPE_SERVER = "load_pipe";
+    const std::string SYNC_TOPIC = "/temoto_component_manager/"+MANAGER+"/sync";
 
     const std::string LIST_COMPONENTS_SERVER = "list_components_server";
     const std::string LIST_PIPES_SERVER = "list_pipes_server";

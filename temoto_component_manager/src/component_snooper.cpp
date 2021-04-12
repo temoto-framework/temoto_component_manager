@@ -14,8 +14,6 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #include "temoto_component_manager/component_snooper.h"
 #include "temoto_component_manager/component_manager_services.h"
 
@@ -82,7 +80,7 @@ try
     ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
     find_components_umrf.setInputParameters(ap);
-    UmrfGraph ug("component_snooper_graph_1", std::vector<Umrf>{find_components_umrf});
+    UmrfGraph ug("component_snooper_graph_1", std::vector<UmrfNode>{find_components_umrf});
     action_engine_.executeUmrfGraph(ug, true);
   }
 
@@ -98,7 +96,7 @@ try
     ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
     find_pipes_umrf.setInputParameters(ap);
-    UmrfGraph ug("component_snooper_graph_2", std::vector<Umrf>{find_pipes_umrf});
+    UmrfGraph ug("component_snooper_graph_2", std::vector<UmrfNode>{find_pipes_umrf});
     action_engine_.executeUmrfGraph(ug, true);
   }
 }

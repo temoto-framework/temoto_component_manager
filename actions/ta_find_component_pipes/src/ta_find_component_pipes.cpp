@@ -20,7 +20,6 @@
 /* REQUIRED BY TEMOTO */
 #include <class_loader/class_loader.hpp>
 #include "ta_find_component_pipes/temoto_action.h"
-#include "ta_find_component_pipes/macros.h"
 
 #include "temoto_component_manager/pipe_info.h"
 #include "temoto_component_manager/component_info_registry.h"
@@ -284,7 +283,7 @@ std::string description_file_= "pipes.yaml";
 ~TaFindComponentPipes()
 {
   // ---> YOUR CONSTRUCTION ROUTINES HERE <--- //
-  TEMOTO_PRINT_OF("Destructor", getUmrfPtr()->getName());
+  TEMOTO_PRINT_OF("Destructor", getUmrfNodeConst().getFullName());
 }
 
 }; // TaFindComponentPipes class

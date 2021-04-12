@@ -40,11 +40,12 @@ generate_messages(
   std_msgs
   diagnostic_msgs
   temoto_core
+  temoto_resource_registrar
 )
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp std_msgs diagnostic_msgs temoto_core temoto_action_engine temoto_er_manager
+  CATKIN_DEPENDS roscpp std_msgs diagnostic_msgs temoto_core temoto_action_engine temoto_er_manager temoto_resource_registrar
   DEPENDS 
 )
 

@@ -14,8 +14,8 @@ temoto_component_manager/PipeSegmentSpecifier[] pipe_segment_specifiers
 # Normally left empty, used by context manager interface status callback
 string pipe_id
 
-# Resource Registrar
-temoto_core/RMPRequest trr
+# Resource Registrar metadata
+temoto_resource_registrar/TemotoMetadata TemotoMetadata
 
 ---
 
@@ -26,5 +26,5 @@ diagnostic_msgs/KeyValue[] output_topics
 # The id of the pipe, e.g., /pipe_123_at_robot_3/
 string pipe_id
 
-# Resource Registrar
-temoto_core/RMPResponse trr
+# Resource Registrar metadata
+temoto_resource_registrar/TemotoMetadata TemotoMetadata

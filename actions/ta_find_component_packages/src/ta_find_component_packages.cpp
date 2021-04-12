@@ -20,7 +20,6 @@
 /* REQUIRED BY TEMOTO */
 #include <class_loader/class_loader.hpp>
 #include "ta_find_component_packages/temoto_action.h"
-#include "ta_find_component_packages/macros.h"
 
 #include "temoto_component_manager/component_info.h"
 #include "temoto_component_manager/component_info_registry.h"
