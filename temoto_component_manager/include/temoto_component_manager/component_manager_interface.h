@@ -14,17 +14,17 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #ifndef TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_INTERFACE_H
 #define TEMOTO_COMPONENT_MANAGER__COMPONENT_MANAGER_INTERFACE_H
 
 #include "temoto_core/common/base_subsystem.h"
 #include "temoto_core/common/topic_container.h"
-#include "temoto_core/trr/resource_registrar.h"
+#include "rr/ros1_resource_registrar.h"
 
 #include "temoto_component_manager/component_manager_services.h"
-#include <memory> //unique_ptr
+#include <memory>
+#include <ctime>
+#include <functional>
 
 /**
  * @brief The ComponentTopicsReq class
@@ -55,7 +55,6 @@ namespace temoto_component_manager
  * @brief Exposes simplified interface to Component Manager
  * 
  */
-template <class ParentSubsystem>
 class ComponentManagerInterface : public temoto_core::BaseSubsystem
 {
 public:
@@ -63,26 +62,56 @@ public:
    * @brief Construct a new Component Manager Interface object
    * 
    */
-  ComponentManagerInterface()
+  ComponentManagerInterface(bool initialize_interface = false)
+  : unique_suffix_(std::to_string(createID()))
+  , has_owner_(false)
+  , initialized_(false)
   {
     class_name_ = __func__;
+    if (initialize_interface)
+    {
+      initialize();
+    }
   }
 
-  /**
-   * @brief Initializes the ComponentManagerInterface. This function must be called before using any other methods of ComponentManagerInterface 
-   * @param parent_subsystem
-   */
-  void initialize(ParentSubsystem* parent_subsystem)
+  void initialize(const BaseSubsystem& owner)
   {
-    parent_subsystem_pointer_ = parent_subsystem;
-    initializeBase(parent_subsystem);
-    log_group_ = "interfaces." + parent_subsystem->class_name_;
-    subsystem_name_ = parent_subsystem->class_name_ + "/component_manager_interface";
+    if (!initialized_)
+    {
+      initializeBase(owner);
+      log_group_ = "interfaces." + owner.subsystem_name_;
+      rr_name_ = owner.class_name_ + "/" + class_name_ + "_" + unique_suffix_;
+      has_owner_ = true;
+      initialize();
+    }
+    else
+    {
+      TEMOTO_WARN_STREAM("The Component Manager Interface is already initialized");
+    }
+  }
 
-    client_list_components_ = nh_.serviceClient<ListComponents>(srv_name::LIST_COMPONENTS_SERVER);
+  void initialize()
+  {
+    if (!initialized_)
+    {
+      if (!has_owner_)
+      {
+        rr_name_ = class_name_ + "_" + unique_suffix_;
+      }
+      resource_registrar_ = std::make_unique<temoto_resource_registrar::ResourceRegistrarRos1>(rr_name_);
+      resource_registrar_->init();
+      initialized_ = true;
+    }
+    else
+    {
+      TEMOTO_WARN_STREAM("The External Resource Manager interface is already initialized");
+    }
+  }
 
-    resource_registrar_ = std::unique_ptr<temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>>(new temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>(subsystem_name_, this));
-    resource_registrar_->registerStatusCb(&ComponentManagerInterface::statusInfoCb);
+  unsigned int createID()
+  {
+    std::srand(std::time(nullptr));
+    return std::rand();
   }
 
   ListComponents::Response listComponents(const std::string& component_type = "")
@@ -110,15 +139,6 @@ public:
    */
   ComponentTopicsRes startComponent(const std::string& component_type, bool use_only_local_components = false)
   {
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
     return startComponent(component_type, "", "", ComponentTopicsReq(), use_only_local_components);
   }
 
@@ -135,15 +155,6 @@ public:
                                    , const ComponentTopicsReq& topics
                                    , bool use_only_local_components = false)
   {
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
     return startComponent(component_type, "", "", topics, use_only_local_components);
   }
 
@@ -164,16 +175,6 @@ public:
                             , const ComponentTopicsReq& topics
                             , bool use_only_local_components = false)
   {
-    
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
     return startComponent(component_type, "", "", topics, ComponentTopicsReq(), use_only_local_components);
   }
 
@@ -255,12 +256,12 @@ public:
       , local_span_context);
 
       #else
-      // If tracing is not enabled
-      resource_registrar_->template call<LoadComponent>( srv_name::MANAGER
+
+      resource_registrar_->call<LoadComponent>(srv_name::MANAGER
       , srv_name::SERVER
       , load_component_srv_msg
-      , temoto_core::trr::FailureBehavior::NONE
-      , temoto_namespace);
+      , NULL
+      , std::bind(&ComponentManagerInterface::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
       #endif
     }
@@ -269,7 +270,7 @@ public:
       throw FORWARD_ERROR(error_stack);
     }
 
-    allocated_components_.push_back(load_component_srv_msg);
+    allocated_components_.insert({load_component_srv_msg.response.TemotoMetadata.requestId, load_component_srv_msg});
     ComponentTopicsRes responded_topics;
     responded_topics.setOutputTopicsByKeyValue(load_component_srv_msg.response.output_topics);
 
@@ -281,31 +282,17 @@ public:
    * 
    * @param load_comp_req 
    */
-  void stopComponent(const temoto_component_manager::LoadComponent& load_comp_msg)
+  void stopComponent(const LoadComponent& load_comp_msg)
+  try
   {
-    // The == operator used in the lambda function is defined in
-    // component manager services header
-    auto found_component_it = std::find_if(
-        allocated_components_.begin(),
-        allocated_components_.end(),
-        [&](const LoadComponent& srv_msg) -> bool{ return srv_msg.request == load_comp_msg.request; });
-
-    if (found_component_it == allocated_components_.end())
-    {
-      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL, "Unable to unload resource that is not "
-                                                            "loaded.");
-    }
-
-    try
-    {
-      // do the unloading
-      resource_registrar_->unloadClientResource(found_component_it->response.trr.resource_id);
-      allocated_components_.erase(found_component_it);
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
+    auto resource_id = allocated_components_.at(load_comp_msg.response.TemotoMetadata.requestId).request.TemotoMetadata.requestId;
+    TEMOTO_WARN_STREAM("unloading " << load_comp_msg.request << "\n" << load_comp_msg.response << "\n" << " with id: " << resource_id);
+    resource_registrar_->unload(srv_name::MANAGER, resource_id);
+    allocated_components_.erase(load_comp_msg.request.TemotoMetadata.requestId);
+  }
+  catch(temoto_core::error::ErrorStack& error_stack)
+  {
+    throw FORWARD_ERROR(error_stack);
   }
 
   /**
@@ -317,22 +304,25 @@ public:
    */
   void stopComponent(std::string component_type, std::string package_name, std::string ros_program_name)
   {
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
+    auto load_comp_msg = std::find_if(allocated_components_.begin()
+    , allocated_components_.end()
+    , [&](const std::pair<std::string, LoadComponent>& lsm)
+      {
+        return lsm.second.request.component_type == component_type
+        && lsm.second.request.package_name == package_name
+        && lsm.second.request.executable == ros_program_name;
+      });
 
-    // Find all instances where request part matches of what was given and unload each resource
-    temoto_component_manager::LoadComponent::Request req;
-    req.component_type = component_type;
-    req.package_name = package_name;
-    req.executable = ros_program_name;
-
-    stopComponent(req);
+    if (load_comp_msg != allocated_components_.end())
+    {
+      stopComponent(load_comp_msg->second);
+    }
+    else
+    {
+      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND
+      , "Could not find a component '%s'."
+      , component_type.c_str());
+    }
   }
 
   /**
@@ -343,20 +333,10 @@ public:
    * @param use_only_local_segments defines whether components could be invoked from other TeMoto instances
    * @return temoto_core::TopicContainer Contains information about the topics published by the last segment of the pipe
    */
-  temoto_core::TopicContainer startPipe( std::string pipe_category
-    , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
-    , bool use_only_local_segments = false)
+  temoto_core::TopicContainer startPipe(std::string pipe_category
+  , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
+  , bool use_only_local_segments = false)
   {
-    // Validate the interface
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
     // Start filling out the LoadPipe message
     LoadPipe load_pipe_msg;
     load_pipe_msg.request.pipe_category = pipe_category;
@@ -411,15 +391,15 @@ public:
 
       #else
       // If tracing is not enabled
-      resource_registrar_->template call<LoadPipe>(srv_name::MANAGER_2
+      resource_registrar_->call<LoadPipe>(srv_name::MANAGER
       , srv_name::PIPE_SERVER
       , load_pipe_msg
-      , temoto_core::trr::FailureBehavior::NONE
-      , temoto_namespace);
+      , NULL
+      , std::bind(&ComponentManagerInterface::pipeStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
       #endif
 
-      allocated_pipes_.push_back(load_pipe_msg);
+      allocated_pipes_.insert({load_pipe_msg.response.TemotoMetadata.requestId, load_pipe_msg});
       temoto_core::TopicContainer topics_to_return;
       topics_to_return.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
       return topics_to_return;
@@ -430,87 +410,42 @@ public:
     }
   }
 
-  void reloadPipe( std::string pipe_category
-    , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
-    , bool use_only_local_segments = false)
-  {
-    TEMOTO_DEBUG_STREAM("Reloading a pipe of type '" << pipe_category << "' ...");
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
+  // void reloadPipe( std::string pipe_category
+  //   , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
+  //   , bool use_only_local_segments = false)
+  // {
+  //   TEMOTO_DEBUG_STREAM("Reloading a pipe of type '" << pipe_category << "' ...");
 
-    LoadPipe load_pipe_msg;
-    if (!findPipe(load_pipe_msg, pipe_category, segment_specifiers, use_only_local_segments))
-    {
-      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL,
-        "Unable to reload a resource that is not loaded.");
-    }
+  //   LoadPipe load_pipe_msg;
+  //   if (!findPipe(load_pipe_msg, pipe_category, segment_specifiers, use_only_local_segments))
+  //   {
+  //     throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL,
+  //       "Unable to reload a resource that is not loaded.");
+  //   }
 
-    // Stop the pipe
-    stopPipe(pipe_category, segment_specifiers, use_only_local_segments);
+  //   // Stop the pipe
+  //   stopPipe(pipe_category, segment_specifiers, use_only_local_segments);
 
-    // Reload the pipe
-    load_pipe_msg.request.pipe_id = load_pipe_msg.response.pipe_id;
-    startPipe(load_pipe_msg);
-  }
+  //   // Reload the pipe
+  //   load_pipe_msg.request.pipe_id = load_pipe_msg.response.pipe_id;
+  //   startPipe(load_pipe_msg);
+  // }
 
   /**
-   * @brief Stops a pipe
+   * @brief 
    * 
-   * @param pipe_category 
-   * @param segment_specifiers 
-   * @param use_only_local_segments 
+   * @param load_pipe_msg 
    */
-  void stopPipe(std::string pipe_category
-  , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
-  , bool use_only_local_segments = false)
+  void stopPipe(const LoadPipe& load_pipe_msg)
+  try
   {
-    TEMOTO_DEBUG_STREAM("Unloading a pipe of type '" << pipe_category << "' ...");
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    // Find all instances where request part matches of what was given and unload each resource
-    LoadPipe load_pipe_msg;
-    load_pipe_msg.request.pipe_category = pipe_category;
-    load_pipe_msg.request.pipe_segment_specifiers = segment_specifiers;
-    load_pipe_msg.request.use_only_local_segments = use_only_local_segments;
-
-    // The == operator used in the lambda function is defined in
-    // component manager services header
-    auto found_pipe_it = std::find_if(
-        allocated_pipes_.begin(),
-        allocated_pipes_.end(),
-        [&](const LoadPipe& srv_msg) -> bool{ return srv_msg.request == load_pipe_msg.request; });
-
-    if (found_pipe_it == allocated_pipes_.end())
-    {
-      throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_UNLOAD_FAIL
-      , "Unable to unload resource that is not loaded.");
-    }
-
-    try
-    {
-      // Do the unloading
-      resource_registrar_->unloadClientResource(found_pipe_it->response.trr.resource_id);
-      allocated_pipes_.erase(found_pipe_it);
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    return;
+    auto resource_id = allocated_pipes_.at(load_pipe_msg.response.TemotoMetadata.requestId).request.TemotoMetadata.requestId;
+    resource_registrar_->unload(srv_name::MANAGER, resource_id);
+    allocated_components_.erase(load_pipe_msg.request.TemotoMetadata.requestId);
+  }
+  catch(temoto_core::error::ErrorStack& error_stack)
+  {
+    throw FORWARD_ERROR(error_stack);
   }
 
   /**
@@ -518,19 +453,9 @@ public:
    * 
    * @param callback 
    */
-  void registerComponentStatusCallback( void (ParentSubsystem::*callback )(const LoadComponent&))
+  void registerComponentStatusCallback(std::function<void(LoadComponent, temoto_resource_registrar::Status)> callback)
   {
-    component_status_callback_ = callback;
-  }
-
-  /**
-   * @brief Registers a custom update routine
-   * 
-   * @param callback 
-   */
-  void registerComponentUpdateCallback( void (ParentSubsystem::*callback )(const LoadComponent&))
-  {
-    component_update_callback_ = callback;
+    user_component_status_callback_ = callback;
   }
 
   /**
@@ -538,19 +463,9 @@ public:
    * 
    * @param callback 
    */
-  void registerPipeStatusCallback( void (ParentSubsystem::*callback )(const LoadPipe&))
+  void registerPipeStatusCallback( std::function<void(LoadPipe, temoto_resource_registrar::Status)> callback)
   {
-    pipe_status_callback_ = callback;
-  }
-
-  /**
-   * @brief Registers a custom update routine
-   * 
-   * @param callback 
-   */
-  void registerPipeUpdateCallback( void (ParentSubsystem::*callback )(const LoadPipe&))
-  {
-    pipe_update_callback_ = callback;
+    user_pipe_status_callback_ = callback;
   }
 
   ~ComponentManagerInterface()
@@ -559,168 +474,121 @@ public:
 
   const std::string& getName() const
   {
-    return subsystem_name_;
+    return rr_name_;
   }
 
 private:
-  std::vector<LoadComponent> allocated_components_;
-  std::vector<LoadPipe> allocated_pipes_;
-
-  void(ParentSubsystem::*component_status_callback_)(const LoadComponent&) = NULL;
-  void(ParentSubsystem::*component_update_callback_)(const LoadComponent&) = NULL;
-  void(ParentSubsystem::*pipe_status_callback_)(const LoadPipe&) = NULL;
-  void(ParentSubsystem::*pipe_update_callback_)(const LoadPipe&) = NULL;
-
-  std::unique_ptr<temoto_core::trr::ResourceRegistrar<ComponentManagerInterface>> resource_registrar_;
-  ParentSubsystem* parent_subsystem_pointer_;
 
   /**
-   * @brief validateInterface
+   * @brief 
+   * 
+   * @param srv_msg 
+   * @param status_msg 
    */
-  void validateInterface()
+  void componentStatusCb(LoadComponent srv_msg, temoto_resource_registrar::Status status_msg)
+  try
   {
-    if(!resource_registrar_)
+    TEMOTO_DEBUG_STREAM("status info was received about component:\n" << srv_msg.request);
+
+    /*
+     * Check if the owner has a status routine defined
+     */
+    if (user_component_status_callback_)
     {
-      throw CREATE_ERROR(temoto_core::error::Code::UNINITIALIZED, "Interface is not initalized.");
+      TEMOTO_DEBUG_STREAM("Invoking user-registered status callback");
+      user_component_status_callback_(srv_msg, status_msg);
+      return;
     }
+    else
+    {
+      auto local_srv_msg = std::find_if(allocated_components_.begin()
+      , allocated_components_.end()
+      , [&srv_msg](const std::pair<std::string, LoadComponent>& lsm)
+        {
+          return lsm.second.request.TemotoMetadata.requestId == srv_msg.request.TemotoMetadata.requestId;
+        });
+
+      if (local_srv_msg == allocated_components_.end())
+      {
+        throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND
+        , "Could not find a resource with id: '%s'."
+        , srv_msg.request.TemotoMetadata.requestId.c_str());
+      }
+
+      TEMOTO_DEBUG_STREAM("Unloading the failed resource");
+      resource_registrar_->unload(srv_name::MANAGER
+      , srv_msg.response.TemotoMetadata.requestId);
+
+      LoadComponent new_srv_msg;
+      new_srv_msg.request = srv_msg.request;
+
+      TEMOTO_DEBUG_STREAM("Asking the same resource again");
+      resource_registrar_->call<LoadComponent>(srv_name::MANAGER
+      , srv_name::SERVER
+      , new_srv_msg);
+
+      allocated_components_[local_srv_msg->first] = new_srv_msg;
+    }
+  }
+  catch (temoto_core::error::ErrorStack& error_stack)
+  {
+    throw FORWARD_ERROR(error_stack);
   }
 
   /**
-   * @brief Receives component status update messages from the Context Manager
+   * @brief 
    * 
-   * @param srv 
+   * @param srv_msg 
+   * @param status_msg 
    */
-  void statusInfoCb(temoto_core::ResourceStatus& srv)
+  void pipeStatusCb(LoadPipe srv_msg, temoto_resource_registrar::Status status_msg)
+  try
   {
-    try
+    /*
+     * Check if the owner has a status routine defined
+     */
+    if (user_pipe_status_callback_)
     {
-      validateInterface();
-
-      TEMOTO_DEBUG_STREAM("status info was received");
-      TEMOTO_DEBUG_STREAM(srv.request);
-
-      /*
-       * Check if the resource that failed was a component
-       */
-      auto component_it = std::find_if(
-        allocated_components_.begin(),
-        allocated_components_.end(),
-        [&](const temoto_component_manager::LoadComponent& comp) -> bool {
-          return comp.response.trr.resource_id == srv.request.resource_id;
+      TEMOTO_DEBUG_STREAM("Invoking user-registered status callback");
+      user_pipe_status_callback_(srv_msg, status_msg);
+      return;
+    }
+    else
+    {
+      auto local_srv_msg = std::find_if(allocated_pipes_.begin()
+      , allocated_pipes_.end()
+      , [&srv_msg](const std::pair<std::string, LoadPipe>& lsm)
+        {
+          return lsm.second.request.TemotoMetadata.requestId == srv_msg.request.TemotoMetadata.requestId;
         });
 
-      if (component_it != allocated_components_.end())
+      if (local_srv_msg == allocated_pipes_.end())
       {
-        if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
-        {
-          TEMOTO_WARN("The status info reported a resource failure.");
-
-          TEMOTO_WARN_STREAM("Sending a request to unload the failed component ...");
-          resource_registrar_->unloadClientResource(component_it->response.trr.resource_id);
-          
-          /*
-            * Check if the owner parent_subsystem has a status routine defined
-            */
-          if (component_status_callback_)
-          {
-            TEMOTO_WARN_STREAM("Executing a custom component recovery behaviour defined in parent_subsystem '" 
-              << parent_subsystem_pointer_->class_name_ << "'.");
-            LoadComponent load_component_msg_cpy = *component_it;
-            (parent_subsystem_pointer_->*component_status_callback_)(load_component_msg_cpy);
-            return;
-          }
-          else
-          {
-            // Execute the default behavior for component failure, which is to load a new component
-            TEMOTO_DEBUG("Asking the same component again");
-
-            // this call automatically updates the response in allocated components vec
-            component_it->request.output_topics = component_it->response.output_topics;
-            resource_registrar_->template call<LoadComponent>(srv_name::MANAGER,
-                                                            srv_name::SERVER,
-                                                            *component_it);
-          }
-          return;
-        }
-        else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
-        {
-          if (component_update_callback_)
-          {
-            TEMOTO_DEBUG_STREAM("Executing a custom component update behaviour defined in parent_subsystem '" 
-            << parent_subsystem_pointer_->class_name_ << "'.");
-            LoadComponent load_component_msg_cpy = *component_it;
-            (parent_subsystem_pointer_->*component_update_callback_)(load_component_msg_cpy);
-          }
-          return;
-        }
-      }
-      
-      /*
-       * Check if the resource that failed was a pipe
-       */
-      auto pipe_it = std::find_if(
-        allocated_pipes_.begin(), 
-        allocated_pipes_.end(),
-        [&](const LoadPipe& pipe) -> bool {
-          return pipe.response.trr.resource_id == srv.request.resource_id;
-        });
-
-      if (pipe_it != allocated_pipes_.end())
-      {
-        if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
-        {
-          TEMOTO_WARN("Sending a request to unload the failed pipe ...");
-          resource_registrar_->unloadClientResource(pipe_it->response.trr.resource_id);
-
-          /*
-          * Check if the owner parent_subsystem has a status routine defined
-          */
-          if (pipe_status_callback_)
-          {
-            TEMOTO_WARN_STREAM("Executing a custom pipe recovery behaviour defined in parent_subsystem '" 
-              << parent_subsystem_pointer_->class_name_ << "'.");
-            LoadPipe load_pipe_msg_cpy = *pipe_it;
-            (parent_subsystem_pointer_->*pipe_status_callback_)(load_pipe_msg_cpy);
-            return;
-          }
-          else
-          {
-            // ... copy the output topics from the response into the output topics
-            // of the request (since the user still wants to receive the data on the same topics) ...
-            pipe_it->request.output_topics = pipe_it->response.output_topics;
-            pipe_it->request.pipe_id = pipe_it->response.pipe_id;
-
-            // ... and load an alternative pipe. This call automatically
-            // updates the response in allocated pipes vector
-            TEMOTO_DEBUG_STREAM("Trying to load an alternative pipe");
-            resource_registrar_->template call<LoadPipe>(srv_name::MANAGER_2,
-                                                      srv_name::PIPE_SERVER,
-                                                      *pipe_it);
-          }
-          return;
-        }
-        else if (srv.request.status_code == temoto_core::trr::status_codes::UPDATE)
-        {
-          if (pipe_update_callback_)
-          {
-            TEMOTO_DEBUG_STREAM("Executing a custom pipe update behaviour defined in parent_subsystem '" 
-            << parent_subsystem_pointer_->class_name_ << "'.");
-            LoadPipe load_pipe_msg_cpy = *pipe_it;
-            (parent_subsystem_pointer_->*pipe_update_callback_)(load_pipe_msg_cpy);
-          }
-          return;
-        }
+        throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND
+        , "Could not find a resource with id: '%s'."
+        , srv_msg.request.TemotoMetadata.requestId.c_str());
       }
 
-      TEMOTO_ERROR_STREAM("Resource status arrived for a resource that does not exist.");
-      // throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Resource status arrived for a "
-      //                    "resource that does not exist.");
+      TEMOTO_DEBUG_STREAM("Unloading the failed resource");
+      resource_registrar_->unload(srv_name::MANAGER
+      , srv_msg.response.TemotoMetadata.requestId);
 
+      LoadPipe new_srv_msg;
+      new_srv_msg.request = srv_msg.request;
+      new_srv_msg.request.output_topics = srv_msg.response.output_topics;
+      new_srv_msg.request.pipe_id = srv_msg.response.pipe_id;
+
+      TEMOTO_DEBUG_STREAM("Asking the same resource again");
+      resource_registrar_->call<LoadPipe>(srv_name::MANAGER
+      , srv_name::PIPE_SERVER
+      , new_srv_msg);
+
+      allocated_pipes_[local_srv_msg->first] = new_srv_msg;
     }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
+  }
+  catch (temoto_core::error::ErrorStack& error_stack)
+  {
+    throw FORWARD_ERROR(error_stack);
   }
 
   bool findPipe(LoadPipe& lp_return_msg
@@ -736,14 +604,16 @@ private:
 
     // The == operator used in the lambda function is defined in
     // component manager services header
-    auto found_pipe_it = std::find_if(
-      allocated_pipes_.begin(),
-      allocated_pipes_.end(),
-      [&](const LoadPipe& srv_msg) -> bool{ return srv_msg.request == load_pipe_msg.request; });
+    auto found_pipe_it = std::find_if(allocated_pipes_.begin()
+    , allocated_pipes_.end()
+    , [&](const std::pair<std::string, LoadPipe>& srv_msg)
+      { 
+        return srv_msg.second.request == load_pipe_msg.request; 
+      });
 
     if (found_pipe_it != allocated_pipes_.end())
     {
-      lp_return_msg = *found_pipe_it;
+      lp_return_msg = found_pipe_it->second;
       return true;
     }
     else
@@ -757,6 +627,18 @@ private:
    */
   ros::NodeHandle nh_;
   ros::ServiceClient client_list_components_;
+
+  std::string rr_name_;
+  std::string unique_suffix_;
+  bool has_owner_;
+  bool initialized_;
+  std::unique_ptr<temoto_resource_registrar::ResourceRegistrarRos1> resource_registrar_;
+
+  std::map<std::string, LoadComponent> allocated_components_;
+  std::map<std::string, LoadPipe> allocated_pipes_;
+
+  std::function<void(LoadComponent, temoto_resource_registrar::Status)> user_component_status_callback_ = NULL;
+  std::function<void(LoadPipe, temoto_resource_registrar::Status)> user_pipe_status_callback_ = NULL;
 };
 
 } // namespace

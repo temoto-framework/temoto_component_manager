@@ -21,6 +21,8 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
+find_package(Boost COMPONENTS program_options REQUIRED)
+
 add_message_files(FILES
   Component.msg
   Pipe.msg
@@ -70,6 +72,7 @@ add_dependencies(temoto_component_manager
 
 target_link_libraries(temoto_component_manager
   ${catkin_LIBRARIES} 
+  ${Boost_LIBRARIES}
 )
 
 install(TARGETS temoto_component_manager
@@ -77,5 +80,6 @@ install(TARGETS temoto_component_manager
 )
 
 install(DIRECTORY include/${PROJECT_NAME}/
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
 

@@ -14,8 +14,6 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #include "temoto_core/common/base_subsystem.h"
 #include "temoto_component_manager/component_manager_services.h"
 #include "temoto_component_manager/component_manager_servers.h"
@@ -23,6 +21,7 @@
 #include "temoto_component_manager/component_snooper.h"
 
 #include <signal.h>
+#include <boost/program_options.hpp>
 
 using namespace temoto_component_manager;
 using namespace temoto_core;
@@ -37,27 +36,25 @@ public:
   /**
    * @brief Constructor
    */
-  ComponentManager()
+  ComponentManager(const std::string& config_base_path)
   : BaseSubsystem("component_manager", error::Subsystem::COMPONENT_MANAGER, __func__)
   , cir_(this)
-  , cs_(this, &cir_)
+  , cs_(this, &cir_, config_base_path)
   , cms_(this, &cir_)
   {}
 
   bool initialize()
+  try
   {
-    try
-    {
-      cs_.startSnooping();
-      TEMOTO_INFO("Component Manager is good to go.");
-      return true;
-    }
-    catch(temoto_core::error::ErrorStack e)
-    {
-      TEMOTO_ERROR_STREAM("Could not start the Component Manager: ");
-      std::cout << e << std::endl;
-      return false;
-    }
+    cs_.startSnooping();
+    TEMOTO_INFO("Component Manager is good to go.");
+    return true;
+  }
+  catch(temoto_core::error::ErrorStack e)
+  {
+    TEMOTO_ERROR_STREAM("Could not start the Component Manager: ");
+    std::cout << e << std::endl;
+    return false;
   }
 
   ~ComponentManager()
@@ -83,10 +80,31 @@ private:
  */
 int main(int argc, char** argv)
 {
+  namespace po = boost::program_options;
+  po::variables_map vm;
+  po::options_description desc("Allowed options");
+  desc.add_options()
+    ("config-base-path", po::value<std::string>(), "Base path to components.yaml and pipes.yaml config files.");
+
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);
+
+  // Get the config path
+  std::string config_base_path;
+  if (vm.count("config-base-path"))
+  {
+    config_base_path = vm["config-base-path"].as<std::string>();
+  }
+  else
+  {
+    std::cout << "Missing Component Manager config base path\n" << desc;
+    return 1;
+  }
+
   ros::init(argc, argv, "component_manager");
 
   // Create a ComponentManager object
-  ComponentManager cm;
+  ComponentManager cm(config_base_path);
   if (!cm.initialize())
   {
     return 1;
@@ -94,6 +112,4 @@ int main(int argc, char** argv)
 
   //use single threaded spinner for global callback queue
   ros::spin();
-
-  return 0;
 }

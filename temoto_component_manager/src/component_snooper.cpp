@@ -29,8 +29,10 @@ using namespace temoto_core;
 //       and I have no clue what kind of behaviour should be expected - prolly bad
 
 ComponentSnooper::ComponentSnooper( temoto_core::BaseSubsystem*b
-, ComponentInfoRegistry* cir)
-: temoto_core::BaseSubsystem(*b, __func__)
+, ComponentInfoRegistry* cir
+, const std::string& config_base_path)
+: config_base_path_(config_base_path)
+, temoto_core::BaseSubsystem(*b, __func__)
 , config_syncer_(srv_name::MANAGER, srv_name::SYNC_TOPIC, &ComponentSnooper::syncCb, this)
 , action_engine_()
 , cir_(cir)
@@ -76,7 +78,7 @@ try
     find_components_umrf.setEffect("synchronous");
 
     ActionParameters ap;
-    ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../../.."));
+    ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(config_base_path_));
     ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
     find_components_umrf.setInputParameters(ap);
@@ -92,7 +94,7 @@ try
     find_pipes_umrf.setEffect("synchronous");
 
     ActionParameters ap;
-    ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(ros::package::getPath(ROS_PACKAGE_NAME) + "/../../.."));
+    ap.setParameter("catkin_ws_path", "string", boost::any_cast<std::string>(config_base_path_));
     ap.setParameter("cir", "cir_pointer", boost::any_cast<ComponentInfoRegistry*>(cir_));
 
     find_pipes_umrf.setInputParameters(ap);

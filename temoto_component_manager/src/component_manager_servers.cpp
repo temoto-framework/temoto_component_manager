@@ -104,8 +104,7 @@ void ComponentManagerServers::componentStatusCb(temoto_er_manager::LoadExtResour
     , allocated_components_.end()
     , [&srv_msg](const AllocCompTuple& act)
       {
-        return std::get<2>(act).response.TemotoMetadata.requestId 
-          == srv_msg.response.TemotoMetadata.requestId;
+        return std::get<0>(act).response.TemotoMetadata.requestId == srv_msg.response.TemotoMetadata.requestId;
       });
 
     if (it == allocated_components_.end())
@@ -246,8 +245,7 @@ bool ComponentManagerServers::listPipesCb( ListPipes::Request& req, ListPipes::R
 /*
  * ComponentManagerServers::loadComponentCb
  */
-void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
-                                             , LoadComponent::Response& res)
+void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, LoadComponent::Response& res)
 {
   TEMOTO_DEBUG_STREAM("Received a request to load a component: \n" << req << std::endl);
 
@@ -270,13 +268,15 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
   bool got_local_components = cir_->findLocalComponents(req, l_cis);
   bool got_remote_components = cir_->findRemoteComponents(req, r_cis);
 
+  TEMOTO_WARN_STREAM("size of local comp:" << l_cis.size() << " and parent query id is: " << parent_query.id());
+
   // Find the most reliable global component but do not forward the requests
   // that originate from other namespaces
   bool prefer_remote = false;
   if (got_local_components
-      && got_remote_components
-      //&& (req.trr.temoto_namespace == common::getTemotoNamespace()) // TODO: include temot namespace to RR2
-      && req.use_only_local_components == false)
+   && got_remote_components
+   && req.use_only_local_components == false
+  /*&& (req.trr.temoto_namespace == common::getTemotoNamespace()) // TODO: include temoto namespace to RR2*/)
   {
     /*
      * TODO: This section should be expanded with more coosing metrics.
@@ -514,21 +514,20 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req
 /*
  * ComponentManagerServers::unloadComponentCb
  */
-void ComponentManagerServers::unloadComponentCb( LoadComponent::Request& req
-                                               , LoadComponent::Response& res)
+void ComponentManagerServers::unloadComponentCb(LoadComponent::Request& req, LoadComponent::Response& res)
 {
   // Suppress "unused parameter" compiler warnings
   (void)req;
   (void)res;
   std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
 
-  TEMOTO_DEBUG_STREAM("received a request to stop component '" << req.component_name <<"'");
+  TEMOTO_WARN_STREAM("received a request to stop component '" << res <<"'");
   auto it = std::find_if(allocated_components_.begin()
   , allocated_components_.end()
-  , [&res](const AllocCompTuple& act)
+  , [&](const AllocCompTuple& act)
     {
-      return std::get<2>(act).response.TemotoMetadata.requestId 
-        == res.TemotoMetadata.requestId;
+      TEMOTO_WARN_STREAM("loaded comp id: " << std::get<0>(act).response.TemotoMetadata.requestId << "\n" << "reqcomp id: " << res.TemotoMetadata.requestId);
+      return std::get<0>(act).response.TemotoMetadata.requestId == res.TemotoMetadata.requestId;
     });
   
   if (it != allocated_components_.end())
@@ -688,18 +687,12 @@ void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Res
   (void)req; // Suppress "unused parameter" compiler warnings
 
   // Remove the pipe from the list of allocated pipes
-  auto it = std::find_if(allocated_pipes_.begin(), allocated_pipes_.end(),
-  [&res](const AllocPipePair& pair_in)
-  {
-    for (const auto& alloc_comp : pair_in.second.second)
+  auto it = std::find_if(allocated_pipes_.begin()
+  , allocated_pipes_.end()
+  , [&res](const AllocPipePair& pair_in)
     {
-      if (alloc_comp.response.TemotoMetadata.requestId == res.TemotoMetadata.requestId)
-      {
-        return true;
-      }
-    }
-    return false;
-  });
+      return pair_in.first.response.TemotoMetadata.requestId == res.TemotoMetadata.requestId;
+    });
 
   if (it != allocated_pipes_.end())
   {
@@ -717,11 +710,11 @@ void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Res
 /*
  * ComponentManagerServers::processTopics
  */
-void ComponentManagerServers::processTopics( std::vector<diagnostic_msgs::KeyValue>& req_topics
-                                           , std::vector<diagnostic_msgs::KeyValue>& res_topics
-                                           , temoto_er_manager::LoadExtResource& load_er_msg
-                                           , ComponentInfo& component_info
-                                           , std::string direction)
+void ComponentManagerServers::processTopics(std::vector<diagnostic_msgs::KeyValue>& req_topics
+, std::vector<diagnostic_msgs::KeyValue>& res_topics
+, temoto_er_manager::LoadExtResource& load_er_msg
+, ComponentInfo& component_info
+, std::string direction)
 {
   /*
    * Find out it this is a launch file or not. Remapping is different

@@ -14,8 +14,6 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #ifndef TEMOTO_COMPONENT__MANAGER_COMPONENT_SNOOPER_H
 #define TEMOTO_COMPONENT__MANAGER_COMPONENT_SNOOPER_H
 
@@ -49,7 +47,7 @@ public:
    * @param b Pointer to the parent subsystem that embeds this object.
    * @param cir Pointer to the Component Info Registry.
    */
-  ComponentSnooper( temoto_core::BaseSubsystem* b, ComponentInfoRegistry* cir);
+  ComponentSnooper( temoto_core::BaseSubsystem* b, ComponentInfoRegistry* cir, const std::string& config_base_path);
 
   /**
    * @brief Advertises a component to other component snoopers.
@@ -106,6 +104,9 @@ private:
 
   /// Used for managing snooper agents.
   ActionEngine action_engine_;
+
+  /// Base path to components and pipes yaml files
+  std::string config_base_path_;
 
   /**
    * @brief Timer for checking local component info updates (timer event will trigger the #updateMonitoringTimerCb).
