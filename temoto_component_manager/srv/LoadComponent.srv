@@ -30,7 +30,7 @@ diagnostic_msgs/KeyValue[] input_topics
 diagnostic_msgs/KeyValue[] required_parameters
 
 # Resource Registrar metadata
-temoto_resource_registrar/TemotoMetadata TemotoMetadata
+temoto_resource_registrar/TemotoRequestMetadata temotoMetadata
 
 ---
 
@@ -51,4 +51,4 @@ diagnostic_msgs/KeyValue[] input_topics
 diagnostic_msgs/KeyValue[] required_parameters
 
 # Resource Registrar metadata
-temoto_resource_registrar/TemotoMetadata TemotoMetadata
+temoto_resource_registrar/TemotoResponseMetadata temotoMetadata

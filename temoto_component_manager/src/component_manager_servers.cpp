@@ -104,7 +104,7 @@ void ComponentManagerServers::componentStatusCb(temoto_er_manager::LoadExtResour
     , allocated_components_.end()
     , [&srv_msg](const AllocCompTuple& act)
       {
-        return std::get<0>(act).response.TemotoMetadata.requestId == srv_msg.response.TemotoMetadata.requestId;
+        return std::get<0>(act).response.temotoMetadata.requestId == srv_msg.response.temotoMetadata.requestId;
       });
 
     if (it == allocated_components_.end())
@@ -143,7 +143,7 @@ void ComponentManagerServers::pipeStatusCb(LoadComponent srv_msg, temoto_resourc
     {
       for (const auto& alloc_comp : pair_in.second.second)
       {
-        if (alloc_comp.response.TemotoMetadata.requestId == srv_msg.response.TemotoMetadata.requestId)
+        if (alloc_comp.response.temotoMetadata.requestId == srv_msg.response.temotoMetadata.requestId)
         {
           return true;
         }
@@ -263,7 +263,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
   // Try to find suitable candidate from local components
   std::vector<ComponentInfo> l_cis;
   std::vector<ComponentInfo> r_cis;
-  Ros1Query<LoadComponent> parent_query(res.TemotoMetadata);
+  Ros1Query<LoadComponent> parent_query(req.temotoMetadata, res.temotoMetadata);
 
   bool got_local_components = cir_->findLocalComponents(req, l_cis);
   bool got_remote_components = cir_->findRemoteComponents(req, r_cis);
@@ -526,8 +526,8 @@ void ComponentManagerServers::unloadComponentCb(LoadComponent::Request& req, Loa
   , allocated_components_.end()
   , [&](const AllocCompTuple& act)
     {
-      TEMOTO_WARN_STREAM("loaded comp id: " << std::get<0>(act).response.TemotoMetadata.requestId << "\n" << "reqcomp id: " << res.TemotoMetadata.requestId);
-      return std::get<0>(act).response.TemotoMetadata.requestId == res.TemotoMetadata.requestId;
+      TEMOTO_WARN_STREAM("loaded comp id: " << std::get<0>(act).response.temotoMetadata.requestId << "\n" << "reqcomp id: " << res.temotoMetadata.requestId);
+      return std::get<0>(act).response.temotoMetadata.requestId == res.temotoMetadata.requestId;
     });
   
   if (it != allocated_components_.end())
@@ -548,7 +548,7 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
   TEMOTO_DEBUG_STREAM("Received a request: \n" << req << std::endl);
 
   PipeInfos pipes;
-  Ros1Query<LoadPipe> parent_query(res.TemotoMetadata);
+  Ros1Query<LoadPipe> parent_query(req.temotoMetadata, res.temotoMetadata);
 
   if (!cir_->findPipes(req, pipes))
   {
@@ -691,7 +691,7 @@ void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Res
   , allocated_pipes_.end()
   , [&res](const AllocPipePair& pair_in)
     {
-      return pair_in.first.response.TemotoMetadata.requestId == res.TemotoMetadata.requestId;
+      return pair_in.first.response.temotoMetadata.requestId == res.temotoMetadata.requestId;
     });
 
   if (it != allocated_pipes_.end())

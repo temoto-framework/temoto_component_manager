@@ -15,7 +15,7 @@ temoto_component_manager/PipeSegmentSpecifier[] pipe_segment_specifiers
 string pipe_id
 
 # Resource Registrar metadata
-temoto_resource_registrar/TemotoMetadata TemotoMetadata
+temoto_resource_registrar/TemotoRequestMetadata temotoMetadata
 
 ---
 
@@ -27,4 +27,4 @@ diagnostic_msgs/KeyValue[] output_topics
 string pipe_id
 
 # Resource Registrar metadata
-temoto_resource_registrar/TemotoMetadata TemotoMetadata
+temoto_resource_registrar/TemotoResponseMetadata temotoMetadata
