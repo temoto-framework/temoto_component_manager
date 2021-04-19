@@ -14,15 +14,16 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
-#include "ros/package.h"
-#include "temoto_component_manager/component_manager_servers.h"
 #include <algorithm>
 #include <utility>
-#include "yaml-cpp/yaml.h"
 #include <fstream>
 #include <regex>
+
+#include "ros/package.h"
+#include "yaml-cpp/yaml.h"
+#include "temoto_component_manager/component_manager_servers.h"
+#include "temoto_resource_registrar/temoto_logging.h"
+#include "temoto_resource_registrar/temoto_error.h"
 
 namespace temoto_component_manager
 {
@@ -388,10 +389,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
         }
         return;
       }
-      catch(error::ErrorStack& error_stack)
+      catch(resource_registrar::TemotoErrorStack& error_stack)
       {
         // TODO: Currently component reuse is enforced
-        throw FORWARD_ERROR(error_stack);
+        throw FWD_TEMOTO_ERRSTACK(error_stack);
       }
     }
 
@@ -448,14 +449,14 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
 
         return;
       }
-      catch(error::ErrorStack& error_stack)
+      catch(resource_registrar::TemotoErrorStack& error_stack)
       {
-        if (error_stack.front().code != static_cast<int>(error::Code::SERVICE_REQ_FAIL))
+        if (error_stack.front().getOrigin() == GET_NAME)
         {
           ci.adjustReliability(0.0);
           cir_->updateLocalComponent(ci);
         }
-        SEND_ERROR(error_stack);
+        //SEND_ERROR(error_stack);
       }
     }
   }
@@ -497,9 +498,9 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
         // std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
         // allocated_components_.emplace(res.trr.resource_id, std::make_pair(ci, res));
       }
-      catch(error::ErrorStack& error_stack)
+      catch(resource_registrar::TemotoErrorStack& error_stack)
       {
-        throw FORWARD_ERROR(error_stack);
+        throw FWD_TEMOTO_ERRSTACK(error_stack);
       }
       return;
     }
@@ -507,7 +508,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
   else
   {
     // no suitable local nor remote component was found
-    throw CREATE_ERROR(error::Code::COMPONENT_NOT_FOUND, "ComponentManagerServers did not find a suitable component.");
+    throw TEMOTO_ERRSTACK("ComponentManagerServers did not find a suitable component");
   }
 }
 
@@ -552,7 +553,7 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
 
   if (!cir_->findPipes(req, pipes))
   {
-    throw CREATE_ERROR(temoto_core::error::Code::NO_TRACKERS_FOUND, "No pipes found for the requested category");
+    throw TEMOTO_ERRSTACK("No pipes found for the requested category");
   }
 
   TEMOTO_DEBUG_STREAM("Found the requested pipe category.");
@@ -669,14 +670,14 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
 
       return;
     }
-    catch (temoto_core::error::ErrorStack& error_stack)
+    catch (resource_registrar::TemotoErrorStack& error_stack)
     {
       // TODO: Make sure that send error add the name of the function where the error was sent
-      SEND_ERROR(error_stack);
+      //SEND_ERROR(error_stack);
     }
   }
 
-  throw CREATE_ERROR(temoto_core::error::Code::NO_TRACKERS_FOUND, "Could not find pipes for the requested category");
+  throw TEMOTO_ERRSTACK("Could not find pipes for the requested category");
 }
 
 /*
@@ -701,11 +702,9 @@ void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Res
   }
   else
   {
-    throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Could not unload the pipe, because"
-                       " it does not exist in the list of allocated pipes");
+    throw TEMOTO_ERRSTACK("Could not unload the pipe, because it does not exist in the list of allocated pipes");
   }
 }
-
 
 /*
  * ComponentManagerServers::processTopics

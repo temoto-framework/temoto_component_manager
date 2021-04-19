@@ -19,6 +19,7 @@
 
 #include <string>
 #include "temoto_core/trr/resource_registrar_services.h"
+#include "temoto_resource_registrar/temoto_error.h"
 #include "temoto_component_manager/ListComponents.h"
 #include "temoto_component_manager/ListPipes.h"
 #include "temoto_component_manager/LoadComponent.h"

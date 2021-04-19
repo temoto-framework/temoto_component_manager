@@ -104,11 +104,11 @@ try
 }
 catch(const std::exception& e)
 {
-  throw CREATE_ERROR(temoto_core::error::Code::ACTION_UNKNOWN, e.what());
+  throw TEMOTO_ERRSTACK(e.what());
 }
 catch(...)
 {
-  throw CREATE_ERROR(temoto_core::error::Code::ACTION_UNKNOWN, "Unhandled exception");
+  throw TEMOTO_ERRSTACK("Unhandled exception");
 }
 
 void ComponentSnooper::advertiseComponent(ComponentInfo& si) const

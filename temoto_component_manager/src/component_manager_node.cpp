@@ -15,6 +15,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "temoto_core/common/base_subsystem.h"
+#include "temoto_resource_registrar/temoto_error.h"
 #include "temoto_component_manager/component_manager_services.h"
 #include "temoto_component_manager/component_manager_servers.h"
 #include "temoto_component_manager/component_info_registry.h"
@@ -50,10 +51,10 @@ public:
     TEMOTO_INFO("Component Manager is good to go.");
     return true;
   }
-  catch(temoto_core::error::ErrorStack e)
+  catch(TemotoErrorStack e)
   {
     TEMOTO_ERROR_STREAM("Could not start the Component Manager: ");
-    std::cout << e << std::endl;
+    std::cout << e.what() << std::endl;
     return false;
   }
 
