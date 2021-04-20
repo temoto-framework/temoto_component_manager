@@ -248,7 +248,7 @@ bool ComponentManagerServers::listPipesCb( ListPipes::Request& req, ListPipes::R
  */
 void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, LoadComponent::Response& res)
 {
-  TEMOTO_DEBUG_STREAM("Received a request to load a component: \n" << req << std::endl);
+  TEMOTO_INFO_STREAM("Received a request to load a component: \n" << req << std::endl);
 
   /*
     There are two significantly different conditions how this callback is invoked by RR server:
@@ -264,12 +264,9 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
   // Try to find suitable candidate from local components
   std::vector<ComponentInfo> l_cis;
   std::vector<ComponentInfo> r_cis;
-  Ros1Query<LoadComponent> parent_query(req.temotoMetadata, res.temotoMetadata);
 
   bool got_local_components = cir_->findLocalComponents(req, l_cis);
   bool got_remote_components = cir_->findRemoteComponents(req, r_cis);
-
-  TEMOTO_WARN_STREAM("size of local comp:" << l_cis.size() << " and parent query id is: " << parent_query.id());
 
   // Find the most reliable global component but do not forward the requests
   // that originate from other namespaces
@@ -314,7 +311,6 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
         resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
         , temoto_er_manager::srv_name::SERVER
         , std::get<2>(*allocated_component)
-        , &parent_query
         , std::bind(&ComponentManagerServers::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
         res.package_name = std::get<0>(*allocated_component).response.package_name;
@@ -345,8 +341,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
             
             resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
             , temoto_er_manager::srv_name::SERVER
-            , load_er_msg_remapper
-            , &parent_query);
+            , load_er_msg_remapper);
 
             res.input_topics.push_back(input_topic);
           }
@@ -381,8 +376,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
 
             resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
             , temoto_er_manager::srv_name::SERVER
-            , load_er_msg_remapper
-            , &parent_query);
+            , load_er_msg_remapper);
 
             res.output_topics.push_back(output_topic);
           }
@@ -428,7 +422,6 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
         resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
         , temoto_er_manager::srv_name::SERVER
         , load_er_msg
-        , &parent_query
         , std::bind(&ComponentManagerServers::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
         TEMOTO_DEBUG("Call to External Resource Manager was sucessful.");
@@ -489,8 +482,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
       {
         resource_registrar_.call<LoadComponent>(srv_name::MANAGER
         , srv_name::SERVER
-        , load_component_msg
-        , &parent_query);
+        , load_component_msg);
 
         TEMOTO_DEBUG("Call to remote ComponentManagerServers was sucessful.");
         res = load_component_msg.response;
@@ -547,9 +539,7 @@ void ComponentManagerServers::unloadComponentCb(LoadComponent::Request& req, Loa
 void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Response& res)
 {
   TEMOTO_DEBUG_STREAM("Received a request: \n" << req << std::endl);
-
   PipeInfos pipes;
-  Ros1Query<LoadPipe> parent_query(req.temotoMetadata, res.temotoMetadata);
 
   if (!cir_->findPipes(req, pipes))
   {
@@ -646,7 +636,6 @@ void ComponentManagerServers::loadPipeCb(LoadPipe::Request& req, LoadPipe::Respo
         resource_registrar_.call<LoadComponent>(temoto_component_manager::srv_name::MANAGER
         , temoto_component_manager::srv_name::SERVER
         , load_component_msg
-        , &parent_query
         , std::bind(&ComponentManagerServers::pipeStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
         // TODO: REMOVE AFTER RMP HAS THIS FUNCTIONALITY

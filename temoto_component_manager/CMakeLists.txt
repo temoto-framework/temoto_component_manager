@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(temoto_component_manager)
-add_compile_options(-std=c++14 -Wno-reorder -Wno-unused-function -Wno-pedantic)
+add_compile_options(-std=c++14 -Wno-reorder -Wno-unused-function -Wno-pedantic -g)
 
 option(TEMOTO_ENABLE_TRACING "Use tracer" OFF)
 

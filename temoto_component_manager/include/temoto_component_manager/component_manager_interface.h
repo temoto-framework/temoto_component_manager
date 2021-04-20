@@ -152,8 +152,8 @@ public:
    * @return ComponentTopicsRes Contains information about the topics published by the invoked component 
    */
   ComponentTopicsRes startComponent( const std::string& component_type
-                                   , const ComponentTopicsReq& topics
-                                   , bool use_only_local_components = false)
+  , const ComponentTopicsReq& topics
+  , bool use_only_local_components = false)
   {
     return startComponent(component_type, "", "", topics, use_only_local_components);
   }
@@ -170,10 +170,10 @@ public:
    * @return ComponentTopicsRes Contains information about the topics published by the invoked component
    */
   ComponentTopicsRes startComponent(const std::string& component_type
-                            , const std::string& package_name
-                            , const std::string& ros_program_name
-                            , const ComponentTopicsReq& topics
-                            , bool use_only_local_components = false)
+  , const std::string& package_name
+  , const std::string& ros_program_name
+  , const ComponentTopicsReq& topics
+  , bool use_only_local_components = false)
   {
     return startComponent(component_type, "", "", topics, ComponentTopicsReq(), use_only_local_components);
   }
@@ -191,12 +191,12 @@ public:
    * @return ComponentTopicsRes Contains information about the topics published by the invoked component
    */
   ComponentTopicsRes startComponent( const std::string& component_type
-                                   , const std::string& package_name
-                                   , const std::string& ros_program_name
-                                   , const ComponentTopicsReq& topics
-                                   , const ComponentTopicsReq& parameters
-                                   , bool use_only_local_components = false
-                                   , std::string temoto_namespace = "")
+  , const std::string& package_name
+  , const std::string& ros_program_name
+  , const ComponentTopicsReq& topics
+  , const ComponentTopicsReq& parameters
+  , bool use_only_local_components = false
+  , std::string temoto_namespace = "")
   {
     // Fill out the "StartComponentRequest" request
     temoto_component_manager::LoadComponent srv_msg;
@@ -260,7 +260,6 @@ public:
       resource_registrar_->call<LoadComponent>(srv_name::MANAGER
       , srv_name::SERVER
       , load_component_srv_msg
-      , NULL
       , std::bind(&ComponentManagerInterface::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
       #endif
@@ -394,7 +393,6 @@ public:
       resource_registrar_->call<LoadPipe>(srv_name::MANAGER
       , srv_name::PIPE_SERVER
       , load_pipe_msg
-      , NULL
       , std::bind(&ComponentManagerInterface::pipeStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
       #endif
