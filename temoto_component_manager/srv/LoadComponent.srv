@@ -34,6 +34,9 @@ temoto_resource_registrar/TemotoRequestMetadata temotoMetadata
 
 ---
 
+# Name of the component
+string component_name
+
 # name of the package
 string package_name
 

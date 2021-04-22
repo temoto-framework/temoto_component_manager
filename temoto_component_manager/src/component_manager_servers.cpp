@@ -18,6 +18,7 @@
 #include <utility>
 #include <fstream>
 #include <regex>
+#include <boost/filesystem.hpp>
 
 #include "ros/package.h"
 #include "yaml-cpp/yaml.h"
@@ -66,6 +67,21 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
   }
 
   resource_registrar_.init();
+
+  /*
+   * Check if this node should be recovered from a previous system failure
+   */
+  if (boost::filesystem::exists(rr_catalog_backup_path))
+  {
+    resource_registrar_.loadCatalog();
+    // TODO: get a map of server to client dependencies
+    // for (const auto& query : resource_registrar_.getServerQueries<LoadExtResource>(srv_name::MANAGER + "_" + srv_name::SERVER))
+    // {
+    //   running_processes_.insert({query.response.pid, query});
+    //   ROS_INFO_STREAM(query.request);
+    //   ROS_INFO_STREAM(query.response);
+    // }
+  }
 
   /*
    * Set up simple ROS servers that do not provide any resources
@@ -427,6 +443,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
         TEMOTO_DEBUG("Call to External Resource Manager was sucessful.");
 
         // Fill out the response about which particular component was chosen
+        res.component_name = ci.getName();
         res.package_name = ci.getPackageName();
         res.executable = ci.getExecutable();
 
@@ -850,7 +867,7 @@ boost::optional<AllocCompTuple> ComponentManagerServers::checkIfInUse(const Load
   
   if (comp_er_pair_it != allocated_components_.end())
   {
-    boost::optional<AllocCompTuple>(*comp_er_pair_it);
+    return boost::optional<AllocCompTuple>(*comp_er_pair_it);
   }
   else
   {

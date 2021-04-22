@@ -157,7 +157,8 @@ static bool operator==(const ComponentInfo& ci1, const ComponentInfo& ci2)
   // Check the namespace, executable and name of the package
   if (ci1.getTemotoNamespace() != ci2.getTemotoNamespace() ||
       ci1.getExecutable() != ci2.getExecutable() ||
-      ci1.getPackageName() != ci2.getPackageName())
+      ci1.getPackageName() != ci2.getPackageName() ||
+      ci1.getName() != ci2.getName())
   {
     return false;
   }
