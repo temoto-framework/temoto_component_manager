@@ -497,7 +497,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
 
       try
       {
-        resource_registrar_.call<LoadComponent>(srv_name::MANAGER
+        resource_registrar_.call<LoadComponent>(ci.getTemotoNamespace() + "/" + srv_name::MANAGER
         , srv_name::SERVER
         , load_component_msg);
 
