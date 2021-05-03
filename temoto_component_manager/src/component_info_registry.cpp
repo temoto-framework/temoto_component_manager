@@ -14,8 +14,6 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #include "temoto_component_manager/component_info_registry.h"
 #include <algorithm>
 
@@ -198,6 +196,27 @@ bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &ci, Compone
   std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
   return findComponent(ci, local_components_, ci_ret);
+}
+
+bool ComponentInfoRegistry::findLocalComponent( const std::string& component_name, ComponentInfo& ci_ret ) const
+{
+  std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
+  auto component_it = std::find_if(local_components_.begin()
+  , local_components_.end()
+  , [&component_name](const ComponentInfo& s)
+    {
+      return s.getName() == component_name;
+    });
+
+  if (component_it != local_components_.end())
+  {
+    ci_ret = *component_it;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &ci ) const

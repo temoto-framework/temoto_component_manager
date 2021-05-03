@@ -50,9 +50,14 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
    * Add the LoadComponent server to the resource registrar
    */
   {
-    auto server = std::make_unique<Ros1Server<LoadComponent>>(srv_name::MANAGER + "_" + srv_name::SERVER
+    auto server = std::make_unique<Ros1Server<LoadComponent>>(srv_name::SERVER
     , std::bind(&ComponentManagerServers::loadComponentCb, this, std::placeholders::_1, std::placeholders::_2)
-    , std::bind(&ComponentManagerServers::unloadComponentCb, this, std::placeholders::_1, std::placeholders::_2));
+    , std::bind(&ComponentManagerServers::unloadComponentCb, this, std::placeholders::_1, std::placeholders::_2)
+    , std::bind(&ComponentManagerServers::componentStatusCb
+      , this
+      , std::placeholders::_1
+      , std::placeholders::_2
+      , std::placeholders::_3));
     resource_registrar_.registerServer(std::move(server));
   }
 
@@ -60,7 +65,7 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
    * Add the LoadPipe server to the resource registrar
    */
   {
-    auto server = std::make_unique<Ros1Server<LoadPipe>>(srv_name::MANAGER + "_" + srv_name::PIPE_SERVER
+    auto server = std::make_unique<Ros1Server<LoadPipe>>(srv_name::PIPE_SERVER
     , std::bind(&ComponentManagerServers::loadPipeCb, this, std::placeholders::_1, std::placeholders::_2)
     , std::bind(&ComponentManagerServers::unloadPipeCb, this, std::placeholders::_1, std::placeholders::_2));
     resource_registrar_.registerServer(std::move(server));
@@ -73,14 +78,35 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
    */
   if (boost::filesystem::exists(rr_catalog_backup_path))
   {
+    TEMOTO_ERROR_STREAM("Restoring the RR catalog");
     resource_registrar_.loadCatalog();
-    // TODO: get a map of server to client dependencies
-    // for (const auto& query : resource_registrar_.getServerQueries<LoadExtResource>(srv_name::MANAGER + "_" + srv_name::SERVER))
-    // {
-    //   running_processes_.insert({query.response.pid, query});
-    //   ROS_INFO_STREAM(query.request);
-    //   ROS_INFO_STREAM(query.response);
-    // }
+    auto tmp = resource_registrar_.getServerQueries<LoadComponent>(srv_name::SERVER);
+    TEMOTO_ERROR_STREAM("Restored " << tmp.size() << " queries");
+
+    for (const auto& component_query : resource_registrar_.getServerQueries<LoadComponent>(srv_name::SERVER))
+    {
+      // Get the component info datastructure that corresponds to the loaded component
+      ComponentInfo ci;
+      if (cir_->findLocalComponent(component_query.response.component_name, ci))
+      {
+        TEMOTO_ERROR_STREAM("found the local component");
+        auto erm_queries = resource_registrar_.getRosChildQueries<temoto_er_manager::LoadExtResource>(component_query.response.temotoMetadata.requestId
+        , temoto_er_manager::srv_name::MANAGER + "_" + temoto_er_manager::srv_name::SERVER);
+      
+        for (const auto& erm_query : erm_queries)
+        {
+          ROS_ERROR_STREAM("JEBOI: " << erm_query.second.request);
+        }
+      }
+      else
+      {
+        TEMOTO_ERROR_STREAM("could not find local component");
+      }
+      //getRosChildQueries
+      // running_processes_.insert({query.response.pid, query});
+      // ROS_INFO_STREAM(query.request);
+      // ROS_INFO_STREAM(query.response);
+    }
   }
 
   /*
@@ -104,10 +130,17 @@ ComponentManagerServers::~ComponentManagerServers()
 {
 }
 
+void ComponentManagerServers::componentStatusCb(LoadComponent::Request& req
+, LoadComponent::Response& res
+, temoto_resource_registrar::Status status_msg)
+{
+  /* TODO */
+}
+
 /*
- * ComponentManagerServers::componentStatusCb
+ * ComponentManagerServers::erStatusCb
  */
-void ComponentManagerServers::componentStatusCb(temoto_er_manager::LoadExtResource srv_msg
+void ComponentManagerServers::erStatusCb(temoto_er_manager::LoadExtResource srv_msg
 , temoto_resource_registrar::Status status_msg)
 {
   TEMOTO_DEBUG("Received a status message.");
@@ -327,7 +360,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
         resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
         , temoto_er_manager::srv_name::SERVER
         , std::get<2>(*allocated_component)
-        , std::bind(&ComponentManagerServers::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
+        , std::bind(&ComponentManagerServers::erStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
         res.package_name = std::get<0>(*allocated_component).response.package_name;
         res.executable = std::get<0>(*allocated_component).response.executable;
@@ -357,7 +390,8 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
             
             resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
             , temoto_er_manager::srv_name::SERVER
-            , load_er_msg_remapper);
+            , load_er_msg_remapper
+            , std::bind(&ComponentManagerServers::erStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
             res.input_topics.push_back(input_topic);
           }
@@ -392,7 +426,8 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
 
             resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
             , temoto_er_manager::srv_name::SERVER
-            , load_er_msg_remapper);
+            , load_er_msg_remapper
+            , std::bind(&ComponentManagerServers::erStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
             res.output_topics.push_back(output_topic);
           }
@@ -438,7 +473,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
         resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
         , temoto_er_manager::srv_name::SERVER
         , load_er_msg
-        , std::bind(&ComponentManagerServers::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
+        , std::bind(&ComponentManagerServers::erStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
         TEMOTO_DEBUG("Call to External Resource Manager was sucessful.");
 

@@ -87,6 +87,17 @@ private:
    * @param res
    */
   void unloadComponentCb(LoadComponent::Request& req, LoadComponent::Response& res);
+  
+  /**
+   * @brief 
+   * 
+   * @param req 
+   * @param res 
+   * @param status_msg 
+   */
+  void componentStatusCb(LoadComponent::Request& req
+  , LoadComponent::Response& res
+  , temoto_resource_registrar::Status status_msg);
 
   /**
    * @brief Callback to pipe setup service
@@ -110,7 +121,7 @@ private:
    * @param srv_msg 
    * @param status_msg 
    */
-  void componentStatusCb(temoto_er_manager::LoadExtResource srv_msg, temoto_resource_registrar::Status status_msg);
+  void erStatusCb(temoto_er_manager::LoadExtResource srv_msg, temoto_resource_registrar::Status status_msg);
 
   /**
    * @brief 

@@ -14,8 +14,6 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #ifndef TEMOTO_COMPONENT_MANAGER__COMPONENT_INFO_REGISTRY_H
 #define TEMOTO_COMPONENT_MANAGER__COMPONENT_INFO_REGISTRY_H
 
@@ -50,6 +48,8 @@ public:
   bool findLocalComponents( temoto_component_manager::LoadComponent::Request& req, std::vector<ComponentInfo>& ci_ret ) const;
 
   bool findLocalComponent( const ComponentInfo& ci, ComponentInfo& ci_ret ) const;
+
+  bool findLocalComponent( const std::string& component_name, ComponentInfo& ci_ret ) const;
 
   bool findLocalComponent( const ComponentInfo& ci ) const;
 
