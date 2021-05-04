@@ -102,7 +102,8 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  ros::init(argc, argv, "component_manager");
+  TEMOTO_LOG_ATTR.initialize("component_manager");
+  ros::init(argc, argv, TEMOTO_LOG_ATTR.getSubsystemName());
 
   // Create a ComponentManager object
   ComponentManager cm(config_base_path);

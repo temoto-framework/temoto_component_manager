@@ -16,6 +16,7 @@
 
 #include "temoto_component_manager/component_info_registry.h"
 #include <algorithm>
+#include "temoto_resource_registrar/temoto_logging.h"
 
 namespace temoto_component_manager
 {
@@ -183,7 +184,7 @@ bool ComponentInfoRegistry::updateRemoteComponent(const ComponentInfo &ci, bool 
 
 bool ComponentInfoRegistry::findLocalComponents( LoadComponent::Request& req
                                          , std::vector<ComponentInfo>& ci_ret ) const
-{
+{ START_SPAN
   // Lock the mutex
   std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
@@ -230,7 +231,7 @@ bool ComponentInfoRegistry::findLocalComponent( const ComponentInfo &ci ) const
 
 bool ComponentInfoRegistry::findRemoteComponents( LoadComponent::Request& req
                                           , std::vector<ComponentInfo>& ci_ret ) const
-{
+{ START_SPAN
   // Lock the mutex
   std::lock_guard<std::recursive_mutex> guard(read_write_mutex);
 
