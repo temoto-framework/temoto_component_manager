@@ -57,6 +57,9 @@ ComponentSnooper::ComponentSnooper( temoto_core::BaseSubsystem*b
   // Start the Action Engine
   action_engine_.start();
 
+  // Start looking for local components
+  startSnooping();
+
   // Component Info update monitoring timer
   update_monitoring_timer_ = nh_.createTimer(ros::Duration(1), &ComponentSnooper::updateMonitoringTimerCb, this);
 

@@ -34,7 +34,7 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
 : BaseSubsystem(*b, __func__)
 , cir_(cir)
 , resource_registrar_(srv_name::MANAGER)
-{
+{ START_SPAN
   /*
    * Configure the RR catalog backup routine
    */
@@ -78,10 +78,10 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
    */
   if (boost::filesystem::exists(rr_catalog_backup_path))
   {
-    TEMOTO_ERROR_STREAM_("Restoring the RR catalog");
+    // Give the component snooper agents some time to find local components
+    ros::Duration(2).sleep();
+    TEMOTO_INFO_STREAM_("Restoring the RR catalog");
     resource_registrar_.loadCatalog();
-    auto tmp = resource_registrar_.getServerQueries<LoadComponent>(srv_name::SERVER);
-    TEMOTO_ERROR_STREAM_("Restored " << tmp.size() << " queries");
 
     for (const auto& component_query : resource_registrar_.getServerQueries<LoadComponent>(srv_name::SERVER))
     {
@@ -91,11 +91,13 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
       {
         TEMOTO_ERROR_STREAM_("found the local component");
         auto erm_queries = resource_registrar_.getRosChildQueries<temoto_er_manager::LoadExtResource>(component_query.response.temotoMetadata.requestId
-        , temoto_er_manager::srv_name::MANAGER + "_" + temoto_er_manager::srv_name::SERVER);
+        , temoto_er_manager::srv_name::SERVER);
       
+        TEMOTO_ERROR_STREAM_("size of erm_queries: " << erm_queries.size());
+
         for (const auto& erm_query : erm_queries)
         {
-          ROS_ERROR_STREAM("JEBOI: " << erm_query.second.request);
+          TEMOTO_ERROR_STREAM("JEBOI: " << erm_query.second.request);
         }
       }
       else

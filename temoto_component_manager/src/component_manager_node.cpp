@@ -40,22 +40,12 @@ public:
   ComponentManager(const std::string& config_base_path)
   : BaseSubsystem("component_manager", error::Subsystem::COMPONENT_MANAGER, __func__)
   , cir_(this)
-  , cs_(this, &cir_, config_base_path)
-  , cms_(this, &cir_)
-  {}
+  {
+    //cs_.startSnooping();
+    cs_ = std::make_unique<ComponentSnooper>(this, &cir_, config_base_path);
+    cms_ = std::make_unique<ComponentManagerServers>(this, &cir_);
 
-  bool initialize()
-  try
-  {
-    cs_.startSnooping();
     TEMOTO_INFO("Component Manager is good to go.");
-    return true;
-  }
-  catch(TemotoErrorStack e)
-  {
-    TEMOTO_ERROR_STREAM("Could not start the Component Manager: ");
-    std::cout << e.what() << std::endl;
-    return false;
   }
 
   ~ComponentManager()
@@ -70,10 +60,10 @@ private:
   ComponentInfoRegistry cir_;
 
   /// Component Manager Servers
-  ComponentManagerServers cms_;
+  std::unique_ptr<ComponentManagerServers> cms_;
 
   /// Component Snooper
-  ComponentSnooper cs_;
+  std::unique_ptr<ComponentSnooper> cs_;
 };
 
 /*
@@ -107,10 +97,6 @@ int main(int argc, char** argv)
 
   // Create a ComponentManager object
   ComponentManager cm(config_base_path);
-  if (!cm.initialize())
-  {
-    return 1;
-  }
 
   //use single threaded spinner for global callback queue
   ros::AsyncSpinner spinner(4);
