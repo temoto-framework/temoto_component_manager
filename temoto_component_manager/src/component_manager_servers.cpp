@@ -80,35 +80,7 @@ ComponentManagerServers::ComponentManagerServers(BaseSubsystem *b, ComponentInfo
   {
     // Give the component snooper agents some time to find local components
     ros::Duration(2).sleep();
-    TEMOTO_INFO_STREAM_("Restoring the RR catalog");
-    resource_registrar_.loadCatalog();
-
-    for (const auto& component_query : resource_registrar_.getServerQueries<LoadComponent>(srv_name::SERVER))
-    {
-      // Get the component info datastructure that corresponds to the loaded component
-      ComponentInfo ci;
-      if (cir_->findLocalComponent(component_query.response.component_name, ci))
-      {
-        TEMOTO_ERROR_STREAM_("found the local component");
-        auto erm_queries = resource_registrar_.getRosChildQueries<temoto_er_manager::LoadExtResource>(component_query.response.temotoMetadata.requestId
-        , temoto_er_manager::srv_name::SERVER);
-      
-        TEMOTO_ERROR_STREAM_("size of erm_queries: " << erm_queries.size());
-
-        for (const auto& erm_query : erm_queries)
-        {
-          TEMOTO_ERROR_STREAM("JEBOI: " << erm_query.second.request);
-        }
-      }
-      else
-      {
-        TEMOTO_ERROR_STREAM_("could not find local component");
-      }
-      //getRosChildQueries
-      // running_processes_.insert({query.response.pid, query});
-      // ROS_INFO_STREAM(query.request);
-      // ROS_INFO_STREAM(query.response);
-    }
+    restoreState();
   }
 
   /*
@@ -463,6 +435,9 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
 
       // Remap the parameters if requested
       processParameters(req.required_parameters, res.required_parameters, load_er_msg, ci);
+
+      // Set additional arguments
+      load_er_msg.request.args = load_er_msg.request.args + " " + req.additional_args; 
             
       TEMOTO_DEBUG_( "Found a suitable local component: '%s', '%s', '%s', reliability %.3f"
       , load_er_msg.request.action.c_str()
@@ -941,6 +916,50 @@ void ComponentManagerServers::cirUpdateCallback(ComponentInfo component)
   //   resource_registrar_1_.sendStatus(status_message);
   // }
   TEMOTO_DEBUG_STREAM_("CIR update routine finished.");
+}
+
+void ComponentManagerServers::restoreState()
+{
+  TEMOTO_INFO_STREAM_("Restoring the RR catalog");
+  resource_registrar_.loadCatalog();
+
+  /*
+   * Restore "Load Component" related datastructures
+   */
+  for (const auto& component_query : resource_registrar_.getServerQueries<LoadComponent>(srv_name::SERVER))
+  {
+    // Get the component info datastructure that corresponds to the loaded component
+    ComponentInfo ci;
+    if (cir_->findLocalComponent(component_query.response.component_name, ci))
+    {
+      TEMOTO_DEBUG_STREAM_("found the local component");
+      auto erm_queries = resource_registrar_.getRosChildQueries<temoto_er_manager::LoadExtResource>(component_query.response.temotoMetadata.requestId
+      , temoto_er_manager::srv_name::SERVER);
+    
+      TEMOTO_DEBUG_STREAM_("size of erm_queries: " << erm_queries.size());
+      for (const auto& erm_query : erm_queries)
+      {
+        TEMOTO_DEBUG_STREAM("ERM query: " << erm_query.second.request);
+        if (erm_query.second.request.package_name == "topic_tools" &&
+            erm_query.second.request.executable == "relay")
+        {
+          continue;
+        }
+        else
+        {
+          allocated_components_.push_back({component_query, ci, erm_query.second});
+        }
+      }
+    }
+    else
+    {
+      TEMOTO_ERROR_STREAM_("could not find local component");
+    }
+  }
+
+  /*
+   * TODO: Restore "Load Pipe" related datastructures
+   */
 }
 
 }  // component_manager namespace

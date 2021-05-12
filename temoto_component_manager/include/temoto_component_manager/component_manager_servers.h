@@ -142,15 +142,21 @@ private:
    * @param direction Specifies whether input or output topics are managed.
    */
   void processTopics( std::vector<diagnostic_msgs::KeyValue>& req_topics
-                    , std::vector<diagnostic_msgs::KeyValue>& res_topics
-                    , temoto_er_manager::LoadExtResource& load_er_msg
-                    , ComponentInfo& component_info
-                    , std::string direction);
+  , std::vector<diagnostic_msgs::KeyValue>& res_topics
+  , temoto_er_manager::LoadExtResource& load_er_msg
+  , ComponentInfo& component_info
+  , std::string direction);
 
   void processParameters( std::vector<diagnostic_msgs::KeyValue>& req_parameters
-                        , std::vector<diagnostic_msgs::KeyValue>& res_parameters
-                        , temoto_er_manager::LoadExtResource& load_er_msg
-                        , ComponentInfo& component_info);
+  , std::vector<diagnostic_msgs::KeyValue>& res_parameters
+  , temoto_er_manager::LoadExtResource& load_er_msg
+  , ComponentInfo& component_info);
+
+  /**
+   * @brief Restores the state of the Component Manager via RR Catalog
+   * 
+   */
+  void restoreState();
 
   /**
    * @brief Checks if given component is already in use

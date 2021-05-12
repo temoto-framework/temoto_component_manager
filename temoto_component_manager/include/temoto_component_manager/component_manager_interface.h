@@ -86,7 +86,7 @@ public:
     }
     else
     {
-      TEMOTO_WARN_STREAM("The Component Manager Interface is already initialized");
+      TEMOTO_WARN_STREAM_("The Component Manager Interface is already initialized");
     }
   }
 
@@ -104,7 +104,7 @@ public:
     }
     else
     {
-      TEMOTO_WARN_STREAM("The External Resource Manager interface is already initialized");
+      TEMOTO_WARN_STREAM_("The External Resource Manager interface is already initialized");
     }
   }
 
@@ -214,21 +214,6 @@ public:
   ComponentTopicsRes startComponent( temoto_component_manager::LoadComponent& load_component_srv_msg
                                    , std::string temoto_namespace = "")
   {
-    #ifdef enable_tracing
-    std::unique_ptr<opentracing::Span> tracing_span;
-
-    if (resource_registrar_->statusCallbackActive())
-    {
-      temoto_core::StringMap parent_context = resource_registrar_->getStatusCallbackSpanContext();
-      TextMapCarrier carrier(parent_context);
-      auto span_context_maybe = TRACER->Extract(carrier);
-      tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__, {opentracing::ChildOf(span_context_maybe->get())});
-    }
-    else
-    {
-      tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__);
-    }
-    #endif
 
     if(temoto_namespace.empty())
     {
@@ -238,31 +223,10 @@ public:
     // Call the server    
     try
     {
-      #ifdef enable_tracing
-      /*
-       * If tracing is enabled:
-       * Propagate the context of the span to the invoked subroutines
-       * TODO: this segment of code will crash if the tracer is uninitialized
-       */ 
-      temoto_core::StringMap local_span_context;
-      TextMapCarrier carrier(local_span_context);
-      auto err = TRACER->Inject(tracing_span->context(), carrier);
-      
-      resource_registrar_->template call<LoadComponent>( srv_name::MANAGER
-      , srv_name::SERVER
-      , load_component_srv_msg
-      , temoto_core::trr::FailureBehavior::NONE
-      , temoto_namespace
-      , local_span_context);
-
-      #else
-
       resource_registrar_->call<LoadComponent>(srv_name::MANAGER
       , srv_name::SERVER
       , load_component_srv_msg
       , std::bind(&ComponentManagerInterface::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
-
-      #endif
     }
     catch(temoto_core::error::ErrorStack& error_stack)
     {
@@ -285,7 +249,7 @@ public:
   try
   {
     auto resource_id = allocated_components_.at(load_comp_msg.response.temotoMetadata.requestId).response.temotoMetadata.requestId;
-    TEMOTO_WARN_STREAM("unloading " << load_comp_msg.request << "\n" << load_comp_msg.response << "\n" << " with id: " << resource_id);
+    TEMOTO_WARN_STREAM_("unloading " << load_comp_msg.request << "\n" << load_comp_msg.response << "\n" << " with id: " << resource_id);
     resource_registrar_->unload(srv_name::MANAGER, resource_id);
     allocated_components_.erase(load_comp_msg.response.temotoMetadata.requestId);
   }
@@ -347,55 +311,19 @@ public:
 
   temoto_core::TopicContainer startPipe(LoadPipe& load_pipe_msg, std::string temoto_namespace = "")
   {
-    #ifdef enable_tracing
-    std::unique_ptr<opentracing::Span> tracing_span;
-
-    if (resource_registrar_->statusCallbackActive())
-    {
-      temoto_core::StringMap parent_context = resource_registrar_->getStatusCallbackSpanContext();
-      TextMapCarrier carrier(parent_context);
-      auto span_context_maybe = TRACER->Extract(carrier);
-      tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__, {opentracing::ChildOf(span_context_maybe->get())});
-    }
-    else
-    {
-      tracing_span = TRACER->StartSpan(this->class_name_ + "::" + __func__);
-    }
-    #endif
-
     if(temoto_namespace.empty())
     {
       temoto_namespace = temoto_core::common::getTemotoNamespace();
     }
 
-    TEMOTO_DEBUG_STREAM("Loading a pipe of type '" << load_pipe_msg.request.pipe_category << "' ...");
+    TEMOTO_DEBUG_STREAM_("Loading a pipe of type '" << load_pipe_msg.request.pipe_category << "' ...");
     try
     {
-      #ifdef enable_tracing
-      /*
-       * If tracing is enabled:
-       * Propagate the context of the span to the invoked subroutines
-       * TODO: this segment of code will crash if the tracer is uninitialized
-       */ 
-      temoto_core::StringMap local_span_context;
-      TextMapCarrier carrier(local_span_context);
-      auto err = TRACER->Inject(tracing_span->context(), carrier);
-      
-      resource_registrar_->template call<LoadPipe>( srv_name::MANAGER_2
-      , srv_name::PIPE_SERVER
-      , load_pipe_msg
-      , temoto_core::trr::FailureBehavior::NONE
-      , temoto_namespace
-      , local_span_context);
-
-      #else
       // If tracing is not enabled
       resource_registrar_->call<LoadPipe>(srv_name::MANAGER
       , srv_name::PIPE_SERVER
       , load_pipe_msg
       , std::bind(&ComponentManagerInterface::pipeStatusCb, this, std::placeholders::_1, std::placeholders::_2));
-
-      #endif
 
       allocated_pipes_.insert({load_pipe_msg.response.temotoMetadata.requestId, load_pipe_msg});
       temoto_core::TopicContainer topics_to_return;
@@ -412,7 +340,7 @@ public:
   //   , const std::vector<PipeSegmentSpecifier>& segment_specifiers = std::vector<PipeSegmentSpecifier>()
   //   , bool use_only_local_segments = false)
   // {
-  //   TEMOTO_DEBUG_STREAM("Reloading a pipe of type '" << pipe_category << "' ...");
+  //   TEMOTO_DEBUG_STREAM_("Reloading a pipe of type '" << pipe_category << "' ...");
 
   //   LoadPipe load_pipe_msg;
   //   if (!findPipe(load_pipe_msg, pipe_category, segment_specifiers, use_only_local_segments))
@@ -486,14 +414,14 @@ private:
   void componentStatusCb(LoadComponent srv_msg, temoto_resource_registrar::Status status_msg)
   try
   {
-    TEMOTO_DEBUG_STREAM("status info was received about component:\n" << srv_msg.request);
+    TEMOTO_WARN_STREAM_("status info was received about component:\n" << srv_msg.request);
 
     /*
      * Check if the owner has a status routine defined
      */
     if (user_component_status_callback_)
     {
-      TEMOTO_DEBUG_STREAM("Invoking user-registered status callback");
+      TEMOTO_ERROR_STREAM_("Invoking user-registered status callback");
       user_component_status_callback_(srv_msg, status_msg);
       return;
     }
@@ -513,17 +441,18 @@ private:
         , srv_msg.response.temotoMetadata.requestId.c_str());
       }
 
-      TEMOTO_DEBUG_STREAM("Unloading the failed resource");
+      TEMOTO_WARN_STREAM_("Unloading the failed resource");
       resource_registrar_->unload(srv_name::MANAGER
       , srv_msg.response.temotoMetadata.requestId);
 
       LoadComponent new_srv_msg;
       new_srv_msg.request = srv_msg.request;
 
-      TEMOTO_DEBUG_STREAM("Asking the same resource again");
+      TEMOTO_WARN_STREAM_("Asking the same resource again");
       resource_registrar_->call<LoadComponent>(srv_name::MANAGER
       , srv_name::SERVER
-      , new_srv_msg);
+      , new_srv_msg
+      , std::bind(&ComponentManagerInterface::componentStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
       allocated_components_[local_srv_msg->first] = new_srv_msg;
     }
@@ -547,7 +476,7 @@ private:
      */
     if (user_pipe_status_callback_)
     {
-      TEMOTO_DEBUG_STREAM("Invoking user-registered status callback");
+      TEMOTO_DEBUG_STREAM_("Invoking user-registered status callback");
       user_pipe_status_callback_(srv_msg, status_msg);
       return;
     }
@@ -567,7 +496,7 @@ private:
         , srv_msg.response.temotoMetadata.requestId.c_str());
       }
 
-      TEMOTO_DEBUG_STREAM("Unloading the failed resource");
+      TEMOTO_DEBUG_STREAM_("Unloading the failed resource");
       resource_registrar_->unload(srv_name::MANAGER
       , srv_msg.response.temotoMetadata.requestId);
 
@@ -576,10 +505,11 @@ private:
       new_srv_msg.request.output_topics = srv_msg.response.output_topics;
       new_srv_msg.request.pipe_id = srv_msg.response.pipe_id;
 
-      TEMOTO_DEBUG_STREAM("Asking the same resource again");
+      TEMOTO_DEBUG_STREAM_("Asking the same resource again");
       resource_registrar_->call<LoadPipe>(srv_name::MANAGER
       , srv_name::PIPE_SERVER
-      , new_srv_msg);
+      , new_srv_msg
+      , std::bind(&ComponentManagerInterface::pipeStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
       allocated_pipes_[local_srv_msg->first] = new_srv_msg;
     }

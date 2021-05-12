@@ -29,6 +29,8 @@ diagnostic_msgs/KeyValue[] input_topics
 # Same idea applies here as it did with the output_topics
 diagnostic_msgs/KeyValue[] required_parameters
 
+string additional_args
+
 # Resource Registrar metadata
 temoto_resource_registrar/TemotoRequestMetadata temotoMetadata
 
