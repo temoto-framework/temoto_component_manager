@@ -233,7 +233,7 @@ public:
       throw FORWARD_ERROR(error_stack);
     }
 
-    allocated_components_.insert({load_component_srv_msg.response.temotoMetadata.requestId, load_component_srv_msg});
+    allocated_components_.insert({load_component_srv_msg.response.temoto_metadata.request_id, load_component_srv_msg});
     ComponentTopicsRes responded_topics;
     responded_topics.setOutputTopicsByKeyValue(load_component_srv_msg.response.output_topics);
 
@@ -248,10 +248,10 @@ public:
   void stopComponent(const LoadComponent& load_comp_msg)
   try
   {
-    auto resource_id = allocated_components_.at(load_comp_msg.response.temotoMetadata.requestId).response.temotoMetadata.requestId;
+    auto resource_id = allocated_components_.at(load_comp_msg.response.temoto_metadata.request_id).response.temoto_metadata.request_id;
     TEMOTO_WARN_STREAM_("unloading " << load_comp_msg.request << "\n" << load_comp_msg.response << "\n" << " with id: " << resource_id);
     resource_registrar_->unload(srv_name::MANAGER, resource_id);
-    allocated_components_.erase(load_comp_msg.response.temotoMetadata.requestId);
+    allocated_components_.erase(load_comp_msg.response.temoto_metadata.request_id);
   }
   catch(temoto_core::error::ErrorStack& error_stack)
   {
@@ -325,7 +325,7 @@ public:
       , load_pipe_msg
       , std::bind(&ComponentManagerInterface::pipeStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
-      allocated_pipes_.insert({load_pipe_msg.response.temotoMetadata.requestId, load_pipe_msg});
+      allocated_pipes_.insert({load_pipe_msg.response.temoto_metadata.request_id, load_pipe_msg});
       temoto_core::TopicContainer topics_to_return;
       topics_to_return.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
       return topics_to_return;
@@ -365,9 +365,9 @@ public:
   void stopPipe(const LoadPipe& load_pipe_msg)
   try
   {
-    auto resource_id = allocated_pipes_.at(load_pipe_msg.response.temotoMetadata.requestId).response.temotoMetadata.requestId;
+    auto resource_id = allocated_pipes_.at(load_pipe_msg.response.temoto_metadata.request_id).response.temoto_metadata.request_id;
     resource_registrar_->unload(srv_name::MANAGER, resource_id);
-    allocated_components_.erase(load_pipe_msg.response.temotoMetadata.requestId);
+    allocated_components_.erase(load_pipe_msg.response.temoto_metadata.request_id);
   }
   catch(temoto_core::error::ErrorStack& error_stack)
   {
@@ -431,19 +431,19 @@ private:
       , allocated_components_.end()
       , [&srv_msg](const std::pair<std::string, LoadComponent>& lsm)
         {
-          return lsm.second.response.temotoMetadata.requestId == srv_msg.response.temotoMetadata.requestId;
+          return lsm.second.response.temoto_metadata.request_id == srv_msg.response.temoto_metadata.request_id;
         });
 
       if (local_srv_msg == allocated_components_.end())
       {
         throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND
         , "Could not find a resource with id: '%s'."
-        , srv_msg.response.temotoMetadata.requestId.c_str());
+        , srv_msg.response.temoto_metadata.request_id.c_str());
       }
 
       TEMOTO_WARN_STREAM_("Unloading the failed resource");
       resource_registrar_->unload(srv_name::MANAGER
-      , srv_msg.response.temotoMetadata.requestId);
+      , srv_msg.response.temoto_metadata.request_id);
 
       LoadComponent new_srv_msg;
       new_srv_msg.request = srv_msg.request;
@@ -486,19 +486,19 @@ private:
       , allocated_pipes_.end()
       , [&srv_msg](const std::pair<std::string, LoadPipe>& lsm)
         {
-          return lsm.second.response.temotoMetadata.requestId == srv_msg.response.temotoMetadata.requestId;
+          return lsm.second.response.temoto_metadata.request_id == srv_msg.response.temoto_metadata.request_id;
         });
 
       if (local_srv_msg == allocated_pipes_.end())
       {
         throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND
         , "Could not find a resource with id: '%s'."
-        , srv_msg.response.temotoMetadata.requestId.c_str());
+        , srv_msg.response.temoto_metadata.request_id.c_str());
       }
 
       TEMOTO_DEBUG_STREAM_("Unloading the failed resource");
       resource_registrar_->unload(srv_name::MANAGER
-      , srv_msg.response.temotoMetadata.requestId);
+      , srv_msg.response.temoto_metadata.request_id);
 
       LoadPipe new_srv_msg;
       new_srv_msg.request = srv_msg.request;
