@@ -117,7 +117,7 @@ void ComponentManagerServers::componentStatusCb(LoadComponent::Request& req
 void ComponentManagerServers::erStatusCb(temoto_er_manager::LoadExtResource srv_msg
 , temoto_resource_registrar::Status status_msg)
 {
-  TEMOTO_DEBUG_("Received a status message.");
+  TEMOTO_WARN_STREAM_("Received a status message: " << status_msg.message_);
 
   // If local component failed, adjust package reliability and advertise to other managers via
   // synchronizer.
@@ -128,7 +128,7 @@ void ComponentManagerServers::erStatusCb(temoto_er_manager::LoadExtResource srv_
     , allocated_components_.end()
     , [&srv_msg](const AllocCompTuple& act)
       {
-        return std::get<0>(act).response.temoto_metadata.request_id == srv_msg.response.temoto_metadata.request_id;
+        return std::get<2>(act).response.temoto_metadata.request_id == srv_msg.response.temoto_metadata.request_id;
       });
 
     if (it == allocated_components_.end())
@@ -138,9 +138,9 @@ void ComponentManagerServers::erStatusCb(temoto_er_manager::LoadExtResource srv_
 
     if (std::get<1>(*it).isLocal())
     {
-      TEMOTO_WARN_("Local component failure detected, adjusting reliability.");
       std::get<1>(*it).adjustReliability(0.0);
       cir_->updateLocalComponent(std::get<1>(*it));
+      TEMOTO_DEBUG_STREAM_("Updated reliability to: " << std::get<1>(*it).getReliability());
     }
     else
     {
