@@ -27,6 +27,7 @@
 #include <boost/filesystem/operations.hpp>
 #include "yaml-cpp/yaml.h"
 #include <fstream>
+#include <chrono>
 
 /* 
  * ACTION IMPLEMENTATION of TaFindComponentPackages 
@@ -105,7 +106,7 @@ void sleepAndCheckOk(float time)
   float current_duration = 0;
   while(actionOk() && (current_duration < time))
   {
-    ros::Duration(timestep).sleep();
+    std::this_thread::sleep_for(std::chrono::milliseconds(int(timestep*1000)));
     current_duration += timestep;
   }
 }
