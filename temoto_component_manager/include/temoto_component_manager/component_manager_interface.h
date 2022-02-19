@@ -249,7 +249,8 @@ public:
   try
   {
     auto resource_id = allocated_components_.at(load_comp_msg.response.temoto_metadata.request_id).response.temoto_metadata.request_id;
-    TEMOTO_WARN_STREAM_("unloading " << load_comp_msg.request << "\n" << load_comp_msg.response << "\n" << " with id: " << resource_id);
+    TEMOTO_WARN_STREAM_("unloading component: " << load_comp_msg.response.component_name 
+      << "(" << load_comp_msg.request.component_type << ")" << ", with id: " << resource_id);
     resource_registrar_->unload(srv_name::MANAGER, resource_id);
     allocated_components_.erase(load_comp_msg.response.temoto_metadata.request_id);
   }

@@ -509,15 +509,18 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
 
       try
       {
-        resource_registrar_.call<LoadComponent>(ci.getTemotoNamespace() + "/" + srv_name::MANAGER
+        resource_registrar_.call<LoadComponent>("/" + ci.getTemotoNamespace() + "/" + srv_name::MANAGER
         , srv_name::SERVER
         , load_component_msg);
 
         TEMOTO_DEBUG_("Call to remote ComponentManagerServers was sucessful.");
+        
+        // Assign the current metadata (res) to the remote response
+        load_component_msg.response.temoto_metadata = res.temoto_metadata;
         res = load_component_msg.response;
 
-        // std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
-        // allocated_components_.emplace(res.trr.resource_id, std::make_pair(ci, res));
+        std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
+        allocated_components_.push_back({load_component_msg, ci, temoto_er_manager::LoadExtResource()});
       }
       catch(resource_registrar::TemotoErrorStack& error_stack)
       {
@@ -936,18 +939,26 @@ void ComponentManagerServers::restoreState()
       auto erm_queries = resource_registrar_.getRosChildQueries<temoto_er_manager::LoadExtResource>(component_query.response.temoto_metadata.request_id
       , temoto_er_manager::srv_name::SERVER);
     
+      // If the component is local, then it also has an ERM query, otherwise it's a remote component
       TEMOTO_DEBUG_STREAM_("size of erm_queries: " << erm_queries.size());
-      for (const auto& erm_query : erm_queries)
+      if (erm_queries.empty())
       {
-        TEMOTO_DEBUG_STREAM("ERM query: " << erm_query.second.request);
-        if (erm_query.second.request.package_name == "topic_tools" &&
-            erm_query.second.request.executable == "relay")
+        allocated_components_.push_back({component_query, ci, temoto_er_manager::LoadExtResource()});
+      }
+      else
+      {
+        for (const auto& erm_query : erm_queries)
         {
-          continue;
-        }
-        else
-        {
-          allocated_components_.push_back({component_query, ci, erm_query.second});
+          TEMOTO_DEBUG_STREAM("ERM query: " << erm_query.second.request);
+          if (erm_query.second.request.package_name == "topic_tools" &&
+              erm_query.second.request.executable == "relay")
+          {
+            continue;
+          }
+          else
+          {
+            allocated_components_.push_back({component_query, ci, erm_query.second});
+          }
         }
       }
     }
