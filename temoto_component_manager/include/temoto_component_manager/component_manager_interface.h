@@ -100,6 +100,8 @@ public:
       }
       resource_registrar_ = std::make_unique<temoto_resource_registrar::ResourceRegistrarRos1>(rr_name_);
       resource_registrar_->init();
+
+      client_list_components_ = nh_.serviceClient<ListComponents>(srv_name::LIST_COMPONENTS_SERVER);
       initialized_ = true;
     }
     else

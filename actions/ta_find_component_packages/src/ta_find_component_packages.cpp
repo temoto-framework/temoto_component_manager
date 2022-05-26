@@ -216,7 +216,7 @@ std::vector<temoto_component_manager::ComponentInfo> parseComponents(const YAML:
   YAML::Node components_node = config["Components"];
   if (!components_node.IsSequence())
   {
-    TEMOTO_WARN_STREAM("The given config does not contain sequence of components: " << file_path);
+    TEMOTO_DEBUG_STREAM("The given config does not contain sequence of components: " << file_path);
     return components;
   }
 
