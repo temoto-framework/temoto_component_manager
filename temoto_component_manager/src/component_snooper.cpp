@@ -16,6 +16,7 @@
 
 #include "temoto_component_manager/component_snooper.h"
 #include "temoto_component_manager/component_manager_services.h"
+#include "temoto_resource_registrar/temoto_error.h"
 
 #include "ros/package.h"
 #include "yaml-cpp/yaml.h"
