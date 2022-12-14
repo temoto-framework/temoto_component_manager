@@ -114,7 +114,7 @@ void ComponentManagerServers::componentStatusCb(LoadComponent::Request& req
 /*
  * ComponentManagerServers::erStatusCb
  */
-void ComponentManagerServers::erStatusCb(temoto_er_manager::LoadExtResource srv_msg
+void ComponentManagerServers::erStatusCb(temoto_process_manager::LoadProcess srv_msg
 , temoto_resource_registrar::Status status_msg)
 {
   TEMOTO_WARN_STREAM_("Received a status message: " << status_msg.message_);
@@ -278,10 +278,10 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
     a) The query is completely unique, no such component is running yet.
     b) The query asks for a component that's already running, but wants the data to be published on custom topics.
 
-    Condition a) is handled in a regular way, that is, the component is located and loaded via ERM.
-    Condition b) is a bit more special. The running component is found and ERM is invoked 2 times:
-      1'st call to ERM sets up a topic remapping node
-      2'nd call to ERM asks to "start" the already running component in order to increase its use count.
+    Condition a) is handled in a regular way, that is, the component is located and loaded via Process Manager.
+    Condition b) is a bit more special. The running component is found and Process Manager is invoked 2 times:
+      1'st call to Process Manager sets up a topic remapping node
+      2'nd call to Process Manager asks to "start" the already running component in order to increase its use count.
    */
 
   // Try to find suitable candidate from local components
@@ -331,8 +331,8 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
 
       try
       {
-        resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
-        , temoto_er_manager::srv_name::SERVER
+        resource_registrar_.call<temoto_process_manager::LoadProcess>(temoto_process_manager::srv_name::MANAGER
+        , temoto_process_manager::srv_name::SERVER
         , std::get<2>(*allocated_component)
         , std::bind(&ComponentManagerServers::erStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -356,14 +356,14 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
           else
           {
             // Set up the remapper
-            temoto_er_manager::LoadExtResource load_er_msg_remapper;
-            load_er_msg_remapper.request.action = temoto_er_manager::action::ROS_EXECUTE;
+            temoto_process_manager::LoadProcess load_er_msg_remapper;
+            load_er_msg_remapper.request.action = temoto_process_manager::action::ROS_EXECUTE;
             load_er_msg_remapper.request.package_name = "topic_tools";
             load_er_msg_remapper.request.executable = "relay";
             load_er_msg_remapper.request.args = alloc_comp_res_tpc_container.getInputTopic(input_topic.key) + " " + input_topic.value;
             
-            resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
-            , temoto_er_manager::srv_name::SERVER
+            resource_registrar_.call<temoto_process_manager::LoadProcess>(temoto_process_manager::srv_name::MANAGER
+            , temoto_process_manager::srv_name::SERVER
             , load_er_msg_remapper
             , std::bind(&ComponentManagerServers::erStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -391,15 +391,15 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
           else
           {
             // Set up the remapper
-            temoto_er_manager::LoadExtResource load_er_msg_remapper;
-            load_er_msg_remapper.request.action = temoto_er_manager::action::ROS_EXECUTE;
+            temoto_process_manager::LoadProcess load_er_msg_remapper;
+            load_er_msg_remapper.request.action = temoto_process_manager::action::ROS_EXECUTE;
             load_er_msg_remapper.request.package_name = "topic_tools";
             load_er_msg_remapper.request.executable = "relay";
             load_er_msg_remapper.request.args = alloc_comp_res_tpc_container.getOutputTopic(output_topic.key) + " " + output_topic.value;
             TEMOTO_DEBUG_STREAM_("key: " << output_topic.key << ". args: " << load_er_msg_remapper.request.args);
 
-            resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
-            , temoto_er_manager::srv_name::SERVER
+            resource_registrar_.call<temoto_process_manager::LoadProcess>(temoto_process_manager::srv_name::MANAGER
+            , temoto_process_manager::srv_name::SERVER
             , load_er_msg_remapper
             , std::bind(&ComponentManagerServers::erStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -422,8 +422,8 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
     for (ComponentInfo& ci : l_cis)
     {
       // Try to run the component via local Resource Manager
-      temoto_er_manager::LoadExtResource load_er_msg;
-      load_er_msg.request.action = temoto_er_manager::action::ROS_EXECUTE;
+      temoto_process_manager::LoadProcess load_er_msg;
+      load_er_msg.request.action = temoto_process_manager::action::ROS_EXECUTE;
       load_er_msg.request.package_name = ci.getPackageName();
       load_er_msg.request.executable = ci.getExecutable();
 
@@ -447,12 +447,12 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
 
       try
       {
-        resource_registrar_.call<temoto_er_manager::LoadExtResource>(temoto_er_manager::srv_name::MANAGER
-        , temoto_er_manager::srv_name::SERVER
+        resource_registrar_.call<temoto_process_manager::LoadProcess>(temoto_process_manager::srv_name::MANAGER
+        , temoto_process_manager::srv_name::SERVER
         , load_er_msg
         , std::bind(&ComponentManagerServers::erStatusCb, this, std::placeholders::_1, std::placeholders::_2));
 
-        TEMOTO_DEBUG_("Call to External Resource Manager was sucessful.");
+        TEMOTO_DEBUG_("Call to  Manager was sucessful.");
 
         // Fill out the response about which particular component was chosen
         res.component_name = ci.getName();
@@ -520,7 +520,7 @@ void ComponentManagerServers::loadComponentCb( LoadComponent::Request& req, Load
         res = load_component_msg.response;
 
         std::lock_guard<std::recursive_mutex> guard_acm(allocated_components_mutex_);
-        allocated_components_.push_back({load_component_msg, ci, temoto_er_manager::LoadExtResource()});
+        allocated_components_.push_back({load_component_msg, ci, temoto_process_manager::LoadProcess()});
       }
       catch(resource_registrar::TemotoErrorStack& error_stack)
       {
@@ -732,7 +732,7 @@ void ComponentManagerServers::unloadPipeCb(LoadPipe::Request& req, LoadPipe::Res
  */
 void ComponentManagerServers::processTopics(std::vector<diagnostic_msgs::KeyValue>& req_topics
 , std::vector<diagnostic_msgs::KeyValue>& res_topics
-, temoto_er_manager::LoadExtResource& load_er_msg
+, temoto_process_manager::LoadProcess& load_er_msg
 , ComponentInfo& component_info
 , std::string direction)
 { START_SPAN
@@ -813,7 +813,7 @@ void ComponentManagerServers::processTopics(std::vector<diagnostic_msgs::KeyValu
  */
 void ComponentManagerServers::processParameters( std::vector<diagnostic_msgs::KeyValue>& req_parameters
                                                , std::vector<diagnostic_msgs::KeyValue>& res_parameters
-                                               , temoto_er_manager::LoadExtResource& load_er_msg
+                                               , temoto_process_manager::LoadProcess& load_er_msg
                                                , ComponentInfo& component_info)
 { START_SPAN
   /*
@@ -936,20 +936,20 @@ void ComponentManagerServers::restoreState()
     if (cir_->findLocalComponent(component_query.response.component_name, ci))
     {
       TEMOTO_DEBUG_STREAM_("found the local component");
-      auto erm_queries = resource_registrar_.getRosChildQueries<temoto_er_manager::LoadExtResource>(component_query.response.temoto_metadata.request_id
-      , temoto_er_manager::srv_name::SERVER);
+      auto erm_queries = resource_registrar_.getRosChildQueries<temoto_process_manager::LoadProcess>(component_query.response.temoto_metadata.request_id
+      , temoto_process_manager::srv_name::SERVER);
     
-      // If the component is local, then it also has an ERM query, otherwise it's a remote component
+      // If the component is local, then it also has an Process Manager query, otherwise it's a remote component
       TEMOTO_DEBUG_STREAM_("size of erm_queries: " << erm_queries.size());
       if (erm_queries.empty())
       {
-        allocated_components_.push_back({component_query, ci, temoto_er_manager::LoadExtResource()});
+        allocated_components_.push_back({component_query, ci, temoto_process_manager::LoadProcess()});
       }
       else
       {
         for (const auto& erm_query : erm_queries)
         {
-          TEMOTO_DEBUG_STREAM("ERM query: " << erm_query.second.request);
+          TEMOTO_DEBUG_STREAM("Process Manager query: " << erm_query.second.request);
           if (erm_query.second.request.package_name == "topic_tools" &&
               erm_query.second.request.executable == "relay")
           {

@@ -11,7 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   temoto_core
   temoto_resource_registrar
   temoto_action_engine
-  temoto_er_manager
+  temoto_process_manager
   roscpp
   roslib
   genmsg
@@ -46,7 +46,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp std_msgs diagnostic_msgs temoto_core temoto_action_engine temoto_er_manager temoto_resource_registrar
+  CATKIN_DEPENDS roscpp std_msgs diagnostic_msgs temoto_core temoto_action_engine temoto_process_manager temoto_resource_registrar
   DEPENDS 
 )
 

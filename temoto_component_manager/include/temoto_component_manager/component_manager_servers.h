@@ -22,7 +22,7 @@
 #include "temoto_core/common/temoto_id.h"
 #include "temoto_component_manager/component_info_registry.h"
 #include "temoto_component_manager/component_manager_services.h"
-#include "temoto_er_manager/temoto_er_manager_services.h"
+#include "temoto_process_manager/process_manager_services.hpp"
 #include "std_msgs/String.h"
 #include <mutex>
 #include <boost/optional.hpp>
@@ -30,7 +30,7 @@
 
 namespace temoto_component_manager
 {
-typedef std::tuple<LoadComponent, ComponentInfo, temoto_er_manager::LoadExtResource> AllocCompTuple;
+typedef std::tuple<LoadComponent, ComponentInfo, temoto_process_manager::LoadProcess> AllocCompTuple;
 typedef std::pair<LoadPipe, std::pair<PipeInfo, std::vector<LoadComponent>>> AllocPipePair;
 
 /**
@@ -121,7 +121,7 @@ private:
    * @param srv_msg 
    * @param status_msg 
    */
-  void erStatusCb(temoto_er_manager::LoadExtResource srv_msg, temoto_resource_registrar::Status status_msg);
+  void erStatusCb(temoto_process_manager::LoadProcess srv_msg, temoto_resource_registrar::Status status_msg);
 
   /**
    * @brief 
@@ -143,13 +143,13 @@ private:
    */
   void processTopics( std::vector<diagnostic_msgs::KeyValue>& req_topics
   , std::vector<diagnostic_msgs::KeyValue>& res_topics
-  , temoto_er_manager::LoadExtResource& load_er_msg
+  , temoto_process_manager::LoadProcess& load_er_msg
   , ComponentInfo& component_info
   , std::string direction);
 
   void processParameters( std::vector<diagnostic_msgs::KeyValue>& req_parameters
   , std::vector<diagnostic_msgs::KeyValue>& res_parameters
-  , temoto_er_manager::LoadExtResource& load_er_msg
+  , temoto_process_manager::LoadProcess& load_er_msg
   , ComponentInfo& component_info);
 
   /**

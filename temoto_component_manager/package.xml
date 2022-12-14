@@ -16,7 +16,7 @@
   <depend>temoto_core</depend>
   <depend>temoto_resource_registrar</depend>
   <depend>temoto_action_engine</depend>
-  <depend>temoto_er_manager</depend>
+  <depend>temoto_process_manager</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

@@ -106,7 +106,7 @@ public:
     }
     else
     {
-      TEMOTO_WARN_STREAM_("The External Resource Manager interface is already initialized");
+      TEMOTO_WARN_STREAM_("The  Manager interface is already initialized");
     }
   }
 
